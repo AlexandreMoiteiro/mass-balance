@@ -1,15 +1,13 @@
-# ATUALIZAÇÃO: Mass & Balance Streamlit com ícones, layout refinado e PDF colorido!
-
 import streamlit as st
 from fpdf import FPDF
 import datetime
 import pandas as pd
 from pathlib import Path
 
-# --- Adicione imagens dos aviões no seu projeto ou use links diretos ---
+# ===== Imagens dos aviões =====
 icons = {
-    "Tecnam P2008": "tecnam_icon.png",   # Coloque este arquivo na pasta do projeto!
-    "Cessna 150": "cessna_icon.png",     # Coloque este arquivo na pasta do projeto!
+    "Tecnam P2008": "tecnam_icon.png",    # Imagem grande, boa qualidade!
+    "Cessna 150": "cessna_icon.png",
     "Cessna 152": "cessna_icon.png"
 }
 
@@ -72,34 +70,6 @@ def get_limits_text(ac):
         parts.append(f"CG Limits: {ac['cg_limits'][0]} to {ac['cg_limits'][1]} {ac['units']['arm']}")
     return "\n".join(parts)
 
-def float_safe(val):
-    try: return float(val)
-    except Exception: return 0.0
-
-def baggage_input_fields(ac):
-    if isinstance(ac['max_baggage_weight'], list):
-        bag1 = st.number_input(
-            "Baggage Area 1", min_value=0.0,
-            max_value=float(ac['max_baggage_weight'][0]), value=0.0, step=1.0, key="bag1"
-        )
-        bag2 = st.number_input(
-            "Baggage Area 2", min_value=0.0,
-            max_value=float(ac['max_baggage_weight'][1]), value=0.0, step=1.0, key="bag2"
-        )
-    else:
-        bag1 = st.number_input(
-            "Baggage", min_value=0.0,
-            max_value=float(ac['max_baggage_weight']), value=0.0, step=1.0, key="bag"
-        )
-        bag2 = 0.0
-    return bag1, bag2
-
-def arm_labels(ac):
-    if isinstance(ac['baggage_arm'], list):
-        return ac['baggage_arm'][0], ac['baggage_arm'][1]
-    else:
-        return ac['baggage_arm'], 0.0
-
 def get_item_limit(item, ac):
     units = ac['units']['weight']
     if item == "Empty Weight":
@@ -138,49 +108,69 @@ def get_cg_color(cg, ac):
     else:
         return "green"
 
-# --- Layout Sidebar com ícone da aeronave
+# Sidebar com imagem grande da aeronave!
 with st.sidebar:
-    aircraft = st.selectbox("Escolha a aeronave", list(aircraft_data.keys()), key="aircraft_select")
+    aircraft = st.selectbox("Escolha a aeronave", list(aircraft_data.keys()))
     ac = aircraft_data[aircraft]
     icon_path = icons.get(aircraft)
     if icon_path and Path(icon_path).exists():
-        st.image(icon_path, width=120)
+        st.image(icon_path, width=260)
     st.subheader("Limites operacionais")
     st.text(get_limits_text(ac))
     st.markdown("---")
     st.caption("Versão Streamlit. Geração de relatório PDF disponível.")
 
-# ---- Layout Central Top: ícone e nome do avião
-st.markdown(
-    f"""
-    <div style='display: flex; align-items: center; justify-content: center; margin-bottom: -15px'>
-        <img src="data:image/png;base64,{Path(icons[aircraft]).read_bytes().hex() if Path(icons[aircraft]).exists() else ''}" height="80" style="margin-right: 20px"/>
-        <h1 style='display: inline; margin: 0 20px 0 0'>{aircraft}</h1>
-    </div>
-    """, unsafe_allow_html=True
-)
+# Topo central: avião grande e nome
+col_img, col_nome = st.columns([1,2])
+with col_img:
+    if icon_path and Path(icon_path).exists():
+        st.image(icon_path, width=180)
+with col_nome:
+    st.title(f"{aircraft}")
 
-# --- Inputs, igual ao Tkinter ---
-cols = st.columns([1.2, 1.2, 1.1])
-with cols[0]:
+st.markdown("### Tabela de entrada Mass & Balance (tudo numa só linha, tipo Excel)")
+
+# Tabela de entrada
+if isinstance(ac['baggage_arm'], list):
+    bag_labels = ["Baggage Area 1", "Baggage Area 2"]
+    bag_limits = ac['max_baggage_weight']
+    bag_arms = ac['baggage_arm']
+else:
+    bag_labels = ["Baggage"]
+    bag_limits = [ac['max_baggage_weight']]
+    bag_arms = [ac['baggage_arm']]
+
+col1, col2, col3, col4, col5 = st.columns([2,2,2,2,2])
+
+with col1:
     ew = st.number_input("Empty Weight", min_value=0.0, max_value=float(ac['max_takeoff_weight']), value=0.0, step=1.0, key="ew")
-    ew_arm = st.number_input("Empty Weight Arm", min_value=0.0, max_value=10.0 if ac['units']['arm']=='m' else 100.0, value=0.0, step=0.001, format="%.3f", key="ew_arm")
-with cols[1]:
+with col2:
+    ew_arm = st.number_input("EW Arm", min_value=0.0, max_value=10.0 if ac['units']['arm']=='m' else 100.0, value=0.0, step=0.001, format="%.3f", key="ew_arm")
+with col3:
     pilot = st.number_input("Pilot & Passenger", min_value=0.0, max_value=float(ac['max_passenger_weight']) if ac['max_passenger_weight'] else 200.0, value=0.0, step=1.0, key="pilot")
-    st.markdown(f"<b>Pilot Arm:</b> {ac['pilot_arm']:.3f} {ac['units']['arm']}", unsafe_allow_html=True)
-with cols[2]:
-    bag1, bag2 = baggage_input_fields(ac)
+with col4:
+    bag1 = st.number_input(bag_labels[0], min_value=0.0, max_value=float(bag_limits[0]), value=0.0, step=1.0, key="bag1")
+with col5:
+    bag2 = 0.0
+    if len(bag_labels) > 1:
+        bag2 = st.number_input(bag_labels[1], min_value=0.0, max_value=float(bag_limits[1]), value=0.0, step=1.0, key="bag2")
+
+# Fuel abaixo
+col_fuel1, col_fuel2 = st.columns([2,2])
+with col_fuel1:
+    fuel_vol = st.number_input("Fuel Volume", min_value=0.0, max_value=float(ac['max_fuel_volume']), value=0.0, step=1.0, key="fuel_vol")
+with col_fuel2:
+    st.markdown(f"Fuel Arm: <b>{ac['fuel_arm']:.3f} {ac['units']['arm']}</b>", unsafe_allow_html=True)
 
 fuel_density = ac['fuel_density']
-fuel_vol = st.number_input("Fuel Volume", min_value=0.0, max_value=float(ac['max_fuel_volume']), value=0.0, step=1.0, key="fuel_vol")
-
+pilot_arm = ac['pilot_arm']
 fw = fuel_vol * fuel_density
 fuel_arm = ac["fuel_arm"]
-bag_arms = arm_labels(ac)
+
 m_empty = ew * ew_arm
-m_pilot = pilot * ac["pilot_arm"]
+m_pilot = pilot * pilot_arm
 m_b1 = bag1 * bag_arms[0]
-m_b2 = bag2 * bag_arms[1]
+m_b2 = bag2 * (bag_arms[1] if len(bag_arms)>1 else 0)
 m_fuel = fw * fuel_arm
 total_wt = ew + pilot + bag1 + bag2 + fw
 total_m = m_empty + m_pilot + m_b1 + m_b2 + m_fuel
@@ -199,7 +189,7 @@ if ac.get('max_passenger_weight') and pilot > ac['max_passenger_weight']:
 if isinstance(ac['max_baggage_weight'], list):
     if bag1 > ac['max_baggage_weight'][0]:
         alerts.append(f"Baggage Area 1 excede o máximo ({ac['max_baggage_weight'][0]} {units_wt})")
-    if bag2 > ac['max_baggage_weight'][1]:
+    if len(bag_limits) > 1 and bag2 > ac['max_baggage_weight'][1]:
         alerts.append(f"Baggage Area 2 excede o máximo ({ac['max_baggage_weight'][1]} {units_wt})")
     if "Cessna" in aircraft and (bag1 + bag2) > 120:
         alerts.append(f"Combined baggage excede o máximo 120 lb")
@@ -217,33 +207,29 @@ if fv_max > max_fuel_vol:
 if total_wt > max_wt:
     alerts.append(f"Total weight excede o máximo permitido ({max_wt} {units_wt})")
 
-st.markdown("---")
+# Mostrar resumo igual ao Tkinter
+st.markdown(
+    f"""<div style="line-height:1.2">
+    <span style='color:blue'><b>Fuel:</b> {fv_max:.1f} {'gal' if 'Cessna' in aircraft else 'L'} / {fw_max:.1f} {units_wt} ({limited_by})</span><br>
+    <span style='color:{get_color(total_wt, max_wt)}'><b>Total Weight:</b> {total_wt:.2f} {units_wt}</span><br>
+    <span style='color:black'><b>Total Moment:</b> {total_m:.2f} {units_wt}·{units_arm}</span><br>
+    <span style='color:{get_cg_color(cg, ac)}'><b>CG:</b> {cg:.3f} {units_arm}</span><br>""",
+    unsafe_allow_html=True
+)
+if ac['cg_limits']:
+    mn, mx = ac['cg_limits']
+    st.markdown(f"<b>Limites CG:</b> {mn:.3f} a {mx:.3f} {units_arm}", unsafe_allow_html=True)
+if alerts:
+    st.markdown("<span style='color:red'><b>Alertas:</b></span>", unsafe_allow_html=True)
+    for alert in alerts:
+        st.markdown(f"<span style='color:red'>{alert}</span>", unsafe_allow_html=True)
 
-# --- Resumo visual fiel ao Tkinter
-col_resumo, _ = st.columns([1.2, 2])
-with col_resumo:
-    st.markdown(
-        f"""<div style="line-height:1.2">
-        <span style='color:blue'><b>Fuel:</b> {fv_max:.1f} {'gal' if 'Cessna' in aircraft else 'L'} / {fw_max:.1f} {units_wt} ({limited_by})</span><br>
-        <span style='color:{get_color(total_wt, max_wt)}'><b>Total Weight:</b> {total_wt:.2f} {units_wt}</span><br>
-        <span style='color:black'><b>Total Moment:</b> {total_m:.2f} {units_wt}·{units_arm}</span><br>
-        <span style='color:{get_cg_color(cg, ac)}'><b>CG:</b> {cg:.3f} {units_arm}</span><br>""",
-        unsafe_allow_html=True
-    )
-    if ac['cg_limits']:
-        mn, mx = ac['cg_limits']
-        st.markdown(f"<b>Limites CG:</b> {mn:.3f} a {mx:.3f} {units_arm}", unsafe_allow_html=True)
-    if alerts:
-        st.markdown("<span style='color:red'><b>Alertas:</b></span>", unsafe_allow_html=True)
-        for alert in alerts:
-            st.markdown(f"<span style='color:red'>{alert}</span>", unsafe_allow_html=True)
-
-# --- Tabela idêntica ao Tkinter ---
+# Tabela de Mass & Balance já preenchida
 rows = []
 if isinstance(ac['baggage_arm'], list):
     rows = [
         ("Empty Weight", ew, ew_arm, m_empty, get_item_limit("Empty Weight", ac)),
-        ("Pilot & Passenger", pilot, ac["pilot_arm"], m_pilot, get_item_limit("Pilot & Passenger", ac)),
+        ("Pilot & Passenger", pilot, pilot_arm, m_pilot, get_item_limit("Pilot & Passenger", ac)),
         ("Baggage Area 1", bag1, bag_arms[0], m_b1, get_item_limit("Baggage Area 1", ac)),
         ("Baggage Area 2", bag2, bag_arms[1], m_b2, get_item_limit("Baggage Area 2", ac)),
         ("Fuel", fw, fuel_arm, m_fuel, get_item_limit("Fuel", ac)),
@@ -251,7 +237,7 @@ if isinstance(ac['baggage_arm'], list):
 else:
     rows = [
         ("Empty Weight", ew, ew_arm, m_empty, get_item_limit("Empty Weight", ac)),
-        ("Pilot & Passenger", pilot, ac["pilot_arm"], m_pilot, get_item_limit("Pilot & Passenger", ac)),
+        ("Pilot & Passenger", pilot, pilot_arm, m_pilot, get_item_limit("Pilot & Passenger", ac)),
         ("Baggage", bag1, bag_arms[0], m_b1, get_item_limit("Baggage", ac)),
         ("Fuel", fw, fuel_arm, m_fuel, get_item_limit("Fuel", ac)),
     ]
@@ -265,7 +251,7 @@ df = pd.DataFrame({
 st.markdown("### Tabela detalhada de Mass & Balance")
 st.dataframe(df, use_container_width=True)
 
-# --- PDF com cores!
+# Geração de PDF igual
 def generate_pdf(aircraft, registration, mission_number, ew, ew_arm, pilot, bag1, bag2, fuel_vol, cg, total_wt, total_m, alerts, fv_max, limited_by, ac, rows):
     pdf = FPDF()
     pdf.add_page()
@@ -310,9 +296,7 @@ def generate_pdf(aircraft, registration, mission_number, ew, ew_arm, pilot, bag1
         pdf.cell(28, 8, f"{arm:.3f}", 1, 0, 'C')
         pdf.cell(38, 8, f"{mom:.2f}", 1, 1, 'C')
     pdf.ln(5)
-    # Summary
     pdf.set_font("Arial", 'B', 12)
-    # Cores dos valores principais
     if total_wt > ac['max_takeoff_weight']:
         pdf.set_text_color(200,0,0)
     else:
@@ -321,7 +305,6 @@ def generate_pdf(aircraft, registration, mission_number, ew, ew_arm, pilot, bag1
     pdf.set_text_color(0,0,0)
     pdf.set_font("Arial", '', 12)
     pdf.cell(0, 8, f"Total Moment: {total_m:.2f} {ac['units']['weight']}·{ac['units']['arm']}", ln=True)
-    # CG colorido
     cg_color = (0,150,0)
     if ac['cg_limits']:
         mn, mx = ac['cg_limits']
@@ -373,10 +356,3 @@ if gerar_pdf:
         st.download_button("Download PDF", f, file_name=pdf_file, mime="application/pdf")
     st.success("PDF gerado com sucesso!")
 
-# ----------- FIM, agora com ícone, layout igual e PDF colorido! -----------
-
-
-
-
-
-      
