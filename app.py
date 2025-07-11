@@ -1,18 +1,15 @@
 import streamlit as st
-from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 from fpdf import FPDF
-import pandas as pd
 import datetime
 from pathlib import Path
 
-# Aircraft icons - must be present in your project folder!
+# --- Aircraft data ---
 icons = {
     "Tecnam P2008": "tecnam_icon.png",
     "Cessna 150": "cessna_icon.png",
     "Cessna 152": "cessna_icon.png"
 }
 
-# Aircraft data (just as before)
 aircraft_data = {
     "Tecnam P2008": {
         "fuel_arm": 2.209,
@@ -25,84 +22,31 @@ aircraft_data = {
         "cg_limits": (1.841, 1.978),
         "fuel_density": 0.72,
         "units": {"weight": "kg", "arm": "m"}
-    },
-    "Cessna 150": {
-        "fuel_arm": 42.0,
-        "pilot_arm": 35.0,
-        "baggage_arm": [70.0, 90.0],
-        "max_takeoff_weight": 1600,
-        "max_fuel_volume": 22.5,
-        "max_passenger_weight": None,
-        "max_baggage_weight": [120, 40],
-        "cg_limits": None,
-        "fuel_density": 6.0,
-        "units": {"weight": "lb", "arm": "in"}
-    },
-    "Cessna 152": {
-        "fuel_arm": 42.0,
-        "pilot_arm": 39.0,
-        "baggage_arm": [64.0, 84.0],
-        "max_takeoff_weight": 1670,
-        "max_fuel_volume": 24.5,
-        "max_passenger_weight": None,
-        "max_baggage_weight": [120, 40],
-        "cg_limits": None,
-        "fuel_density": 6.0,
-        "units": {"weight": "lb", "arm": "in"}
     }
+    # Add other aircrafts here...
 }
 
 def get_limits_text(ac):
     units = ac["units"]["weight"]
-    parts = [
+    lines = [
         f"Max Takeoff Weight: {ac['max_takeoff_weight']} {units}",
-        f"Max Fuel Volume: {ac['max_fuel_volume']} {'L' if units == 'kg' else 'gal'}"
+        f"Max Fuel Volume: {ac['max_fuel_volume']} L",
+        f"Max Pilot+Passenger: {ac['max_passenger_weight']} {units}",
+        f"Max Baggage: {ac['max_baggage_weight']} {units}",
+        f"CG Limits: {ac['cg_limits'][0]} to {ac['cg_limits'][1]} {ac['units']['arm']}"
     ]
-    if ac['max_passenger_weight']:
-        parts.append(f"Max Pilot+Passenger: {ac['max_passenger_weight']} {units}")
-    if isinstance(ac['max_baggage_weight'], list):
-        parts.append(
-            f"Max Baggage:\n Area1: {ac['max_baggage_weight'][0]} {units}\n Area2: {ac['max_baggage_weight'][1]} {units}"
-        )
-        if 'Cessna' in ac['units']['arm']:
-            parts.append("Combined baggage max: 120 lb")
-    else:
-        parts.append(f"Max Baggage: {ac['max_baggage_weight']} {units}")
-    if ac['cg_limits']:
-        parts.append(f"CG Limits: {ac['cg_limits'][0]} to {ac['cg_limits'][1]} {ac['units']['arm']}")
-    return "\n".join(parts)
+    return "\n".join(lines)
 
-def get_item_limit(item, ac):
-    units = ac['units']['weight']
-    if item == "Empty Weight":
-        return f"≤ {ac['max_takeoff_weight']} {units}"
-    if item == "Pilot & Passenger":
-        if ac.get('max_passenger_weight'):
-            return f"≤ {ac['max_passenger_weight']} {units}"
-        return "-"
-    if item == "Baggage Area 1":
-        return f"≤ {ac['max_baggage_weight'][0]} {units}"
-    if item == "Baggage Area 2":
-        return f"≤ {ac['max_baggage_weight'][1]} {units}"
-    if item == "Baggage":
-        return f"≤ {ac['max_baggage_weight']} {units}"
-    if item == "Fuel":
-        return f"≤ {ac['max_fuel_volume']}L" if units == "kg" else f"≤ {ac['max_fuel_volume']} gal"
-    return "-"
-
-def get_color(val, limit, margin=0.05):
-    if limit is None: return "black"
+def get_color(val, limit):
     if val > limit:
         return "red"
-    elif val > (limit * (1 - margin)):
+    elif val > (limit * 0.95):
         return "orange"
     else:
         return "green"
 
-def get_cg_color(cg, ac):
-    if not ac['cg_limits']:
-        return "gray"
-    mn, mx = ac['cg_limits']
+def get_cg_color(cg, limits):
+    mn, mx = limits
     margin = (mx - mn) * 0.05
     if cg < mn or cg > mx:
         return "red"
@@ -111,172 +55,143 @@ def get_cg_color(cg, ac):
     else:
         return "green"
 
-# === SIDEBAR: Aircraft and image ===
+# --- Sidebar: Aircraft selection and image ---
 with st.sidebar:
     aircraft = st.selectbox("Select Aircraft", list(aircraft_data.keys()))
     ac = aircraft_data[aircraft]
     icon_path = icons.get(aircraft)
     if icon_path and Path(icon_path).exists():
-        st.image(icon_path, width=220)
+        st.image(icon_path, width=250)
     st.subheader("Operational Limits")
     st.text(get_limits_text(ac))
     st.caption("Streamlit version. PDF report available.")
 
-# === MAIN: AG-GRID TABLE FOR MASS & BALANCE ===
+# --- TABLE-STYLE UI: Inputs all in a single row, just like Tkinter ---
 st.title("Mass & Balance Planner")
-st.write("Enter all weights directly in the table. Calculations update instantly. (This is an interactive table, like Excel!)")
+st.markdown("All entries below are in line, just like your Tkinter app. Fuel is always calculated automatically.")
 
-# Table configuration based on aircraft
-if isinstance(ac['baggage_arm'], list):
-    rowdata = [
-        {"Item": "Empty Weight", "Weight": 0.0, "Arm": 0.0, "Limit": ac['max_takeoff_weight']},
-        {"Item": "Pilot & Passenger", "Weight": 0.0, "Arm": ac['pilot_arm'], "Limit": ac['max_passenger_weight'] or None},
-        {"Item": "Baggage Area 1", "Weight": 0.0, "Arm": ac['baggage_arm'][0], "Limit": ac['max_baggage_weight'][0]},
-        {"Item": "Baggage Area 2", "Weight": 0.0, "Arm": ac['baggage_arm'][1], "Limit": ac['max_baggage_weight'][1]},
-        {"Item": "Fuel Volume", "Weight": 0.0, "Arm": ac['fuel_arm'], "Limit": ac['max_fuel_volume']},
-    ]
-else:
-    rowdata = [
-        {"Item": "Empty Weight", "Weight": 0.0, "Arm": 0.0, "Limit": ac['max_takeoff_weight']},
-        {"Item": "Pilot & Passenger", "Weight": 0.0, "Arm": ac['pilot_arm'], "Limit": ac['max_passenger_weight'] or None},
-        {"Item": "Baggage", "Weight": 0.0, "Arm": ac['baggage_arm'], "Limit": ac['max_baggage_weight']},
-        {"Item": "Fuel Volume", "Weight": 0.0, "Arm": ac['fuel_arm'], "Limit": ac['max_fuel_volume']},
-    ]
+col1, col2, col3, col4, col5 = st.columns([2, 2, 2, 2, 2])
+with col1:
+    ew = st.number_input("Empty Weight", min_value=0.0, max_value=float(ac['max_takeoff_weight']), value=0.0, step=1.0, format="%.2f")
+with col2:
+    ew_arm = st.number_input("EW Arm", min_value=0.0, max_value=10.0, value=0.0, step=0.001, format="%.3f")
+with col3:
+    pilot = st.number_input("Pilot & Passenger", min_value=0.0, max_value=float(ac['max_passenger_weight']), value=0.0, step=1.0, format="%.2f")
+with col4:
+    baggage = st.number_input("Baggage", min_value=0.0, max_value=float(ac['max_baggage_weight']), value=0.0, step=1.0, format="%.2f")
+with col5:
+    st.markdown("<br>Fuel is auto", unsafe_allow_html=True)
 
-df = pd.DataFrame(rowdata)
+# --- Fuel calculation (always auto) ---
+useful_load = ac['max_takeoff_weight'] - (ew + pilot + baggage)
+fw_max = max(0.0, useful_load)
+fv_max = min(ac['max_fuel_volume'], fw_max / ac['fuel_density'])
+fuel_weight = fv_max * ac['fuel_density']
 
-# Editable grid
-gb = GridOptionsBuilder.from_dataframe(df)
-gb.configure_column("Weight", editable=True, type=["numericColumn","numberColumnFilter","customNumericFormat"], precision=2)
-gb.configure_column("Arm", editable=("Empty Weight" in df["Item"].values), type=["numericColumn","numberColumnFilter","customNumericFormat"], precision=3)
-gb.configure_column("Limit", editable=False)
-gb.configure_column("Item", editable=False)
-grid_options = gb.build()
+# --- Calculations ---
+m_empty = ew * ew_arm
+m_pilot = pilot * ac['pilot_arm']
+m_baggage = baggage * ac['baggage_arm']
+m_fuel = fuel_weight * ac['fuel_arm']
+total_weight = ew + pilot + baggage + fuel_weight
+total_moment = m_empty + m_pilot + m_baggage + m_fuel
+cg = (total_moment / total_weight) if total_weight > 0 else 0
 
-grid_return = AgGrid(
-    df,
-    gridOptions=grid_options,
-    update_mode=GridUpdateMode.MODEL_CHANGED,
-    allow_unsafe_jscode=True,
-    fit_columns_on_grid_load=True,
-    theme="streamlit"
+# --- Table with results ---
+st.markdown("### Mass & Balance Table")
+result_cols = st.columns([2, 2, 2, 2, 2])
+result_cols[0].write("**Item**")
+result_cols[1].write("**Weight (kg)**")
+result_cols[2].write("**Arm (m)**")
+result_cols[3].write("**Moment (kg·m)**")
+result_cols[4].write("**Limit**")
+
+items = ["Empty Weight", "Pilot & Passenger", "Baggage", "Fuel"]
+weights = [ew, pilot, baggage, fuel_weight]
+arms = [ew_arm, ac['pilot_arm'], ac['baggage_arm'], ac['fuel_arm']]
+moments = [m_empty, m_pilot, m_baggage, m_fuel]
+limits = [
+    f"≤ {ac['max_takeoff_weight']} kg",
+    f"≤ {ac['max_passenger_weight']} kg",
+    f"≤ {ac['max_baggage_weight']} kg",
+    f"≤ {ac['max_fuel_volume']} L"
+]
+for i in range(4):
+    row = st.columns([2,2,2,2,2])
+    row[0].write(items[i])
+    row[1].write(f"{weights[i]:.2f}")
+    row[2].write(f"{arms[i]:.3f}")
+    row[3].write(f"{moments[i]:.2f}")
+    row[4].write(limits[i])
+
+# --- Summary, like the Tkinter bottom area ---
+cg_color = get_cg_color(cg, ac['cg_limits'])
+st.markdown("---")
+st.markdown(
+    f"<b>Fuel possible:</b> <span style='color:blue'>{fv_max:.1f} L / {fuel_weight:.1f} kg</span> (tank/weight limited)<br>"
+    f"<b>Total Weight:</b> <span style='color:{get_color(total_weight, ac['max_takeoff_weight'])}'>{total_weight:.2f} kg</span><br>"
+    f"<b>Total Moment:</b> {total_moment:.2f} kg·m<br>"
+    f"<b>CG:</b> <span style='color:{cg_color}'>{cg:.3f} m</span><br>"
+    f"<b>CG Limits:</b> {ac['cg_limits'][0]:.3f} to {ac['cg_limits'][1]:.3f} m",
+    unsafe_allow_html=True
 )
+if cg_color == "red":
+    st.error("CG is OUTSIDE the safe envelope!")
+elif cg_color == "orange":
+    st.warning("CG is close to the limit!")
+else:
+    st.success("CG is WITHIN the safe envelope.")
 
-df = grid_return['data']
-
-# Compute Fuel Weight if fuel is entered in volume
-fuel_density = ac["fuel_density"]
-for idx, row in df.iterrows():
-    if "Fuel" in row["Item"]:
-        fuel_vol = row["Weight"]
-        fuel_weight = fuel_vol * fuel_density
-        df.at[idx, "Weight"] = fuel_weight
-
-# Calculate moments
-moments = []
-for idx, row in df.iterrows():
-    moments.append(row["Weight"] * row["Arm"])
-df["Moment"] = moments
-
-# Total
-total_weight = df["Weight"].sum()
-total_moment = df["Moment"].sum()
-cg = total_moment / total_weight if total_weight else 0.0
-
-st.write("### Results")
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Total Weight", f"{total_weight:.2f} {ac['units']['weight']}", delta=None)
-col2.metric("Total Moment", f"{total_moment:.2f} {ac['units']['weight']}·{ac['units']['arm']}")
-col3.metric("CG", f"{cg:.3f} {ac['units']['arm']}", delta=None)
-if ac["cg_limits"]:
-    mn, mx = ac["cg_limits"]
-    if cg < mn or cg > mx:
-        col4.markdown(f"<span style='color:red'><b>CG out of limits!</b></span>", unsafe_allow_html=True)
-    else:
-        col4.markdown(f"<span style='color:green'><b>CG within limits</b></span>", unsafe_allow_html=True)
-
-# Show the editable table again for clarity
-st.write("### Editable Mass & Balance Table")
-st.dataframe(df, use_container_width=True)
-
-# --- PDF GENERATION ---
-def generate_pdf(df, ac, aircraft, registration, mission_number, cg, total_weight, total_moment):
+# --- PDF Export (igual ao Tkinter) ---
+def generate_pdf(aircraft, ew, ew_arm, pilot, baggage, fuel_weight, fv_max, m_empty, m_pilot, m_baggage, m_fuel, total_weight, total_moment, cg, ac):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', 16)
     pdf.cell(0, 10, "Mass & Balance Report", ln=True, align='C')
     pdf.set_font("Arial", '', 12)
-    pdf.ln(2)
-    flight_date = datetime.datetime.now().strftime("%d/%m/%Y")
-    flight_time = datetime.datetime.now().strftime("%H:%M")
-    pdf.cell(0, 8, f"Aircraft: {aircraft} ({registration})", ln=True)
+    now = datetime.datetime.now()
+    pdf.cell(0, 8, f"Aircraft: {aircraft}", ln=True)
+    pdf.cell(0, 8, f"Date: {now.strftime('%d/%m/%Y')} {now.strftime('%H:%M')}", ln=True)
     pdf.cell(0, 8, "Operator: Sevenair Academy", ln=True)
-    pdf.cell(0, 8, f"Mission Number: {mission_number}", ln=True)
-    pdf.cell(0, 8, f"Date: {flight_date}", ln=True)
-    pdf.cell(0, 8, f"Time: {flight_time}", ln=True)
-    pdf.ln(3)
-    pdf.set_font("Arial", 'B', 11)
-    pdf.cell(0, 8, "Operational Limits:", ln=True)
-    pdf.set_font("Arial", '', 10)
-    pdf.cell(0, 6, f"- Max Takeoff Weight: {ac['max_takeoff_weight']} {ac['units']['weight']}", ln=True)
-    pdf.cell(0, 6, f"- Max Fuel Volume: {ac['max_fuel_volume']} {'L' if ac['units']['weight'] == 'kg' else 'gal'}", ln=True)
-    if ac.get('max_passenger_weight'):
-        pdf.cell(0, 6, f"- Max Pilot & Passenger: {ac['max_passenger_weight']} {ac['units']['weight']}", ln=True)
-    if isinstance(ac['max_baggage_weight'], list):
-        pdf.cell(0, 6, f"- Max Baggage Area 1: {ac['max_baggage_weight'][0]} {ac['units']['weight']}", ln=True)
-        pdf.cell(0, 6, f"- Max Baggage Area 2: {ac['max_baggage_weight'][1]} {ac['units']['weight']}", ln=True)
-    else:
-        pdf.cell(0, 6, f"- Max Baggage: {ac['max_baggage_weight']} {ac['units']['weight']}", ln=True)
-    if ac['cg_limits']:
-        mn, mx = ac['cg_limits']
-        pdf.cell(0, 6, f"- CG Limits: {mn} to {mx} {ac['units']['arm']}", ln=True)
+    pdf.ln(4)
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(40, 8, "Item", 1, 0)
+    pdf.cell(35, 8, "Weight (kg)", 1, 0)
+    pdf.cell(30, 8, "Arm (m)", 1, 0)
+    pdf.cell(40, 8, "Moment (kg·m)", 1, 0)
+    pdf.cell(35, 8, "Limit", 1, 1)
+    pdf.set_font("Arial", '', 12)
+    for item, w, a, m, l in zip(items, weights, arms, moments, limits):
+        pdf.cell(40, 8, item, 1, 0)
+        pdf.cell(35, 8, f"{w:.2f}", 1, 0, 'C')
+        pdf.cell(30, 8, f"{a:.3f}", 1, 0, 'C')
+        pdf.cell(40, 8, f"{m:.2f}", 1, 0, 'C')
+        pdf.cell(35, 8, l, 1, 1, 'C')
     pdf.ln(3)
     pdf.set_font("Arial", 'B', 12)
-    pdf.cell(60, 8, "Item", 1, 0, 'C')
-    pdf.cell(32, 8, f"Weight ({ac['units']['weight']})", 1, 0, 'C')
-    pdf.cell(28, 8, f"Arm ({ac['units']['arm']})", 1, 0, 'C')
-    pdf.cell(38, 8, f"Moment ({ac['units']['weight']}·{ac['units']['arm']})", 1, 1, 'C')
-    pdf.set_font("Arial", '', 12)
-    for _, row in df.iterrows():
-        pdf.cell(60, 8, str(row["Item"]), 1, 0)
-        pdf.cell(32, 8, f"{row['Weight']:.2f}", 1, 0, 'C')
-        pdf.cell(28, 8, f"{row['Arm']:.3f}", 1, 0, 'C')
-        pdf.cell(38, 8, f"{row['Moment']:.2f}", 1, 1, 'C')
-    pdf.ln(5)
-    pdf.set_font("Arial", 'B', 12)
-    if total_weight > ac['max_takeoff_weight']:
-        pdf.set_text_color(200,0,0)
+    pdf.cell(0, 8, f"Fuel possible: {fv_max:.1f} L / {fuel_weight:.1f} kg", ln=True)
+    pdf.cell(0, 8, f"Total Weight: {total_weight:.2f} kg", ln=True)
+    pdf.cell(0, 8, f"Total Moment: {total_moment:.2f} kg·m", ln=True)
+    pdf.cell(0, 8, f"CG: {cg:.3f} m", ln=True)
+    pdf.cell(0, 8, f"CG Limits: {ac['cg_limits'][0]:.3f} to {ac['cg_limits'][1]:.3f} m", ln=True)
+    if cg_color == "red":
+        pdf.cell(0, 8, "CG is OUTSIDE the safe envelope!", ln=True)
+    elif cg_color == "orange":
+        pdf.cell(0, 8, "CG is close to the limit!", ln=True)
     else:
-        pdf.set_text_color(0,150,0)
-    pdf.cell(0, 8, f"Total Weight: {total_weight:.2f} {ac['units']['weight']}", ln=True)
-    pdf.set_text_color(0,0,0)
-    pdf.set_font("Arial", '', 12)
-    pdf.cell(0, 8, f"Total Moment: {total_moment:.2f} {ac['units']['weight']}·{ac['units']['arm']}", ln=True)
-    cg_color = (0,150,0)
-    if ac['cg_limits']:
-        mn, mx = ac['cg_limits']
-        if cg < mn or cg > mx:
-            cg_color = (200,0,0)
-    pdf.set_font("Arial", 'B', 12)
-    pdf.set_text_color(*cg_color)
-    pdf.cell(0, 8, f"CG: {cg:.3f} {ac['units']['arm']}", ln=True)
-    pdf.set_text_color(0,0,0)
+        pdf.cell(0, 8, "CG is WITHIN the safe envelope.", ln=True)
     pdf.ln(2)
-    pdf.set_font("Arial", '', 12)
-    pdf.cell(0, 8, f"- Fuel onboard: {df.loc[df['Item'].str.contains('Fuel'), 'Weight'].values[0]:.1f} {ac['units']['weight']}", ln=True)
-    pdf.ln(6)
-    pdf.set_font("Arial", 'I', 7)
-    pdf.set_text_color(0, 0, 0)
-    pdf.cell(0, 4, "Green: within operational limits. Red: exceeds operational limits.", ln=True, align='C')
-    pdf.cell(0, 4, "Report auto-generated by Mass & Balance Planner (Streamlit)", ln=True, align='C')
+    pdf.set_font("Arial", 'I', 9)
+    pdf.cell(0, 7, "Auto-generated by Mass & Balance Planner (Streamlit)", ln=True)
     return pdf
 
 with st.expander("Generate PDF report"):
-    registration = st.text_input("Aircraft registration", value="CS-XXX")
-    mission_number = st.text_input("Mission number", value="001")
     if st.button("Generate PDF with current values"):
-        pdf = generate_pdf(df, ac, aircraft, registration, mission_number, cg, total_weight, total_moment)
-        pdf_file = f"MB_{aircraft.replace(' ','_')}_{mission_number}.pdf"
+        pdf = generate_pdf(
+            aircraft, ew, ew_arm, pilot, baggage, fuel_weight, fv_max,
+            m_empty, m_pilot, m_baggage, m_fuel, total_weight, total_moment, cg, ac
+        )
+        pdf_file = f"MB_{aircraft.replace(' ','_')}_{datetime.datetime.now().strftime('%Y%m%d%H%M')}.pdf"
         pdf.output(pdf_file)
         with open(pdf_file, "rb") as f:
             st.download_button("Download PDF", f, file_name=pdf_file, mime="application/pdf")
