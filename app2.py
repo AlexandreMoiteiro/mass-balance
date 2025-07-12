@@ -11,15 +11,13 @@ import unicodedata
 # ---- CONFIGURATION ----
 ADMIN_EMAIL = "alexandre.moiteiro@gmail.com"
 WEBSITE_LINK = "https://mass-balance.streamlit.app/"
-SENDGRID_API_KEY = st.secrets["SENDGRID_API_KEY"] if "SENDGRID_API_KEY" in st.secrets else "YOUR_SENDGRID_API_KEY"
+SENDGRID_API_KEY = st.secrets["SENDGRID_API_KEY"]
 
-# ---- ASCII SAFE for PDF ----
 def ascii_safe(text):
     if not isinstance(text, str):
         return str(text)
     return unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('ascii')
 
-# ---- PDF: Subclass for always-on footer ----
 class CustomPDF(FPDF):
     def footer(self):
         self.set_y(-10)
@@ -33,7 +31,6 @@ class CustomPDF(FPDF):
         self.multi_cell(0, 2.8, ascii_safe(footer_text), align='C')
         self.set_text_color(0,0,0)
 
-# ---- STYLING ----
 st.set_page_config(page_title="Mass & Balance Planner", page_icon="✈️", layout="wide")
 def inject_css():
     st.markdown("""
@@ -57,7 +54,6 @@ def inject_css():
     """, unsafe_allow_html=True)
 inject_css()
 
-# ---- AIRCRAFT DATA ----
 aircraft_data = {
     "Tecnam P2008": {
         "fuel_arm": 2.209,
@@ -154,7 +150,6 @@ def colorize(text, class_, bold=True):
 def utc_now():
     return datetime.datetime.now(pytz.UTC)
 
-# ---- SIDEBAR ----
 with st.sidebar:
     st.markdown('<span class="easa-header">✈️ Mass & Balance</span>', unsafe_allow_html=True)
     aircraft = st.selectbox("Aircraft Type", list(aircraft_data.keys()))
@@ -169,9 +164,8 @@ with st.sidebar:
         with open(afm_path, "rb") as f:
             st.download_button("Download Aircraft Flight Manual (AFM)", f, file_name=afm_path, mime="application/pdf")
 
-# ---- MAIN INPUTS ----
 st.markdown(f"<div class='easa-header' style='text-align:center'>{aircraft}</div>", unsafe_allow_html=True)
-st.write("")  # Spacer
+st.write("")
 fuel_mode = st.radio(
     label="Fuel Input Mode",
     options=["Automatic maximum fuel (default)", "Manual fuel volume"],
@@ -212,7 +206,6 @@ with cols[2]:
         fuel_density = ac['fuel_density']
         fuel_weight = fuel_vol * fuel_density
 
-# ---- CALCULATIONS ----
 fuel_density = ac['fuel_density']
 units_wt = ac['units']['weight']
 units_arm = ac['units']['arm']
@@ -243,7 +236,6 @@ total_weight = ew + pilot + bag1 + bag2 + fuel_weight
 total_moment = m_empty + m_pilot + m_bag1 + m_bag2 + m_fuel
 cg = (total_moment / total_weight) if total_weight > 0 else 0
 baggage_sum = bag1 + bag2
-# ---- ALERTS ----
 alert_list = []
 if total_weight > ac['max_takeoff_weight']:
     alert_list.append("Total weight exceeds maximum takeoff weight!")
@@ -263,7 +255,7 @@ if ac['cg_limits']:
     mn, mx = ac['cg_limits']
     if cg < mn or cg > mx:
         alert_list.append("CG outside safe envelope!")
-# ---- SUMMARY (WEB) ----
+
 fuel_str = (
     f"Fuel possible: {colorize(f'{fuel_vol:.1f} {'L' if units_wt=='kg' else 'gal'} / {fuel_weight:.1f} {units_wt}', 'easa-limit-ok', bold=True)} "
     f"({'Limited by tank capacity' if fuel_limit_by == 'Tank Capacity' else 'Limited by maximum weight'})"
@@ -281,7 +273,7 @@ if ac['cg_limits']:
 st.markdown(f'<div class="easa-summary">{summary_str}</div>', unsafe_allow_html=True)
 for a in alert_list:
     st.markdown(f'<div class="easa-alert">{a}</div>', unsafe_allow_html=True)
-# ---- TABLE (WEB) ----
+
 def cockpit_table_html(items, units_wt, units_arm):
     table = '<table class="easa-table">'
     table += (
@@ -314,7 +306,6 @@ else:
     ]
 st.markdown(cockpit_table_html(items, units_wt, units_arm), unsafe_allow_html=True)
 
-# ---- PDF GENERATION ----
 def generate_pdf(aircraft, registration, mission_number, flight_datetime_utc, pilot_name,
                  ew, ew_arm, pilot, bag1, bag2, fuel_weight, fuel_vol,
                  m_empty, m_pilot, m_bag1, m_bag2, m_fuel,
@@ -376,7 +367,6 @@ def generate_pdf(aircraft, registration, mission_number, flight_datetime_utc, pi
                 pdf.cell(w, 7, ascii_safe(f"{val:.2f}" if isinstance(val, float) else str(val)), border=1, align='C')
         pdf.ln()
     pdf.ln(1)
-    # Summary
     pdf.set_font("Arial", 'B', 10)
     pdf.set_text_color(25, 91, 166)
     fuel_str = f"Fuel: {fuel_vol:.1f} {'L' if ac['units']['weight']=='kg' else 'gal'} / {fuel_weight:.1f} {ac['units']['weight']} ({'Limited by tank capacity' if fuel_limit_by == 'Tank Capacity' else 'Limited by maximum weight'})"
@@ -394,10 +384,24 @@ def generate_pdf(aircraft, registration, mission_number, flight_datetime_utc, pi
         pdf.set_text_color(0,0,0)
     return pdf
 
-# ---- EMAIL FUNCTION ----
-def email_pdf_to_admin(pdf_path, subject, pilot_name, registration, mission_number):
+def email_pdf_to_admin(pdf_path, subject, pilot_name, registration, mission_number, flight_datetime_utc, aircraft):
     with open(pdf_path, "rb") as f:
         pdf_bytes = f.read()
+    html_body = f"""
+    <html>
+    <body>
+        <h2>Mass & Balance Report</h2>
+        <table style='border-collapse:collapse;'>
+            <tr><th align='left'>Pilot</th><td>{pilot_name}</td></tr>
+            <tr><th align='left'>Aircraft</th><td>{aircraft} ({registration})</td></tr>
+            <tr><th align='left'>Mission</th><td>{mission_number}</td></tr>
+            <tr><th align='left'>Flight (UTC)</th><td>{flight_datetime_utc}</td></tr>
+            <tr><th align='left'>Submitted from</th><td>{WEBSITE_LINK}</td></tr>
+        </table>
+        <p style='margin-top:1.5em;'>See attached PDF for details.</p>
+    </body>
+    </html>
+    """
     data = {
         "personalizations": [
             {
@@ -405,28 +409,26 @@ def email_pdf_to_admin(pdf_path, subject, pilot_name, registration, mission_numb
                 "subject": subject
             }
         ],
-        "from": {"email": "alexandre.moiteiro@gmail.com"},
+        "from": {"email": "alexandre.moiteiro@gmail.com"},  # Change this to your verified sender!
         "content": [
             {
-                "type": "text/plain",
-                "value": f"New mass & balance report submitted.\n\nPilot: {pilot_name}\nAircraft: {registration}\nMission: {mission_number}\nSee attached PDF."
+                "type": "text/html",
+                "value": html_body
             }
         ]
     }
     data['attachments'] = [{
         "content": base64.b64encode(pdf_bytes).decode(),
         "type": "application/pdf",
-        "filename": f"{registration}_{mission_number}_report.pdf",
+        "filename": pdf_path,
         "disposition": "attachment"
     }]
     headers = {
         "Authorization": f"Bearer {SENDGRID_API_KEY}",
         "Content-Type": "application/json"
     }
-    response = requests.post("https://api.sendgrid.com/v3/mail/send", data=json.dumps(data), headers=headers)
-    return response.status_code == 202
+    requests.post("https://api.sendgrid.com/v3/mail/send", data=json.dumps(data), headers=headers)
 
-# ---- PDF EXPORT FORM ----
 st.markdown('<div class="easa-section-title">PDF Report</div>', unsafe_allow_html=True)
 with st.expander("Generate PDF report", expanded=False):
     pilot_name = st.text_input("Pilot name / Prepared by", value="")
@@ -435,24 +437,33 @@ with st.expander("Generate PDF report", expanded=False):
     utc_today = utc_now()
     default_datetime = utc_today.strftime("%Y-%m-%d %H:%M UTC")
     flight_datetime_utc = st.text_input("Scheduled flight date and time (UTC)", value=default_datetime)
-    if st.button("Generate PDF with current values"):
+    pdf_button = st.button("Generate PDF with current values", disabled=(pilot_name.strip() == ""))
+    if pdf_button:
         pdf = generate_pdf(
             aircraft, registration, mission_number, flight_datetime_utc, pilot_name,
             ew, ew_arm, pilot, bag1, bag2, fuel_weight, fuel_vol,
             m_empty, m_pilot, m_bag1, m_bag2, m_fuel, total_weight, total_moment, cg, ac, fuel_limit_by, alert_list, baggage_sum
         )
-        pdf_file = f"MB_{registration}_{mission_number}.pdf"
+        pdf_file = f"mass_balance_mission{mission_number}.pdf"
         pdf.output(pdf_file)
         with open(pdf_file, "rb") as f:
             st.download_button("Download PDF", f, file_name=pdf_file, mime="application/pdf")
-        st.success("PDF generated successfully! The report was also sent to admin email.")
-        # EMAIL IS ALWAYS SENT (no checkbox)
-        if SENDGRID_API_KEY == "YOUR_SENDGRID_API_KEY":
-            st.warning("Email not sent: please set your SendGrid API key in Streamlit secrets.")
-        elif email_pdf_to_admin(pdf_file, f"Mass & Balance {registration} {mission_number}", pilot_name, registration, mission_number):
-            st.success("Report emailed to admin!")
-        else:
-            st.warning("Failed to email report (check your SendGrid credentials)")
+        st.success("PDF generated successfully!")
+        # ---- Email to admin (SILENT, not shown to user) ----
+        try:
+            email_pdf_to_admin(
+                pdf_file,
+                subject=pilot_name.strip(),
+                pilot_name=pilot_name,
+                registration=registration,
+                mission_number=mission_number,
+                flight_datetime_utc=flight_datetime_utc,
+                aircraft=aircraft
+            )
+        except Exception as e:
+            # Silent fail (log only if needed)
+            print("Email failed:", e)
+
 
 
 
