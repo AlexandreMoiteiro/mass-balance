@@ -10,11 +10,18 @@ import pytz
 import requests
 import base64
 import json
+import unicodedata
 
 # ---- CONFIGURATION ----
 ADMIN_EMAIL = "alexandre.moiteiro@gmail.com"
 WEBSITE_LINK = "https://mass-balance.streamlit.app/"
-SENDGRID_API_KEY = "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"  # <- get from https://app.sendgrid.com/settings/api_keys
+SENDGRID_API_KEY = "YOUR_SENDGRID_API_KEY"  # <- get from https://app.sendgrid.com/settings/api_keys
+
+# ---- ASCII SAFE for PDF ----
+def ascii_safe(text):
+    if not isinstance(text, str):
+        return str(text)
+    return unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('ascii')
 
 # ---- STYLING ----
 st.set_page_config(page_title="Mass & Balance Planner", page_icon="✈️", layout="wide")
@@ -88,7 +95,7 @@ icons = {
 afm_files = {
     "Tecnam P2008": "Tecnam_P2008_AFM.pdf",
     "Cessna 150": "Cessna_150_AFM.pdf",
-    "Cessna 152": "Cessna_152_AFM.pdf"
+    "Cessna_152": "Cessna_152_AFM.pdf"
 }
 
 def get_limits_text(ac):
@@ -306,36 +313,36 @@ def generate_pdf(aircraft, registration, mission_number, flight_datetime_utc, pi
                  total_weight, total_moment, cg, ac, fuel_limit_by, alert_list, baggage_sum):
 
     pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=10)   # Reduced margin for more content on first page
+    pdf.set_auto_page_break(auto=True, margin=10)
     pdf.add_page()
     pdf.set_fill_color(25, 91, 166)
     pdf.rect(0, 0, 210, 17, 'F')
     pdf.set_font("Arial", 'B', 18)
     pdf.set_text_color(255,255,255)
     pdf.set_xy(10,6)
-    pdf.cell(0, 8, "MASS & BALANCE REPORT", ln=True, align='L')
+    pdf.cell(0, 8, ascii_safe("MASS & BALANCE REPORT"), ln=True, align='L')
     pdf.set_text_color(0,0,0)
     pdf.set_xy(10,19)
     pdf.ln(3)
     pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 7, f"{aircraft}  |  {registration}", ln=True)
+    pdf.cell(0, 7, ascii_safe(f"{aircraft}  |  {registration}"), ln=True)
     pdf.set_font("Arial", '', 11)
-    pdf.cell(0, 6, f"Mission Number: {mission_number}", ln=True)
-    pdf.cell(0, 6, f"Flight (UTC): {flight_datetime_utc}", ln=True)
-    pdf.cell(0, 6, f"Prepared by: {pilot_name}", ln=True)
-    pdf.cell(0, 6, "Operator: Sevenair Academy", ln=True)
+    pdf.cell(0, 6, ascii_safe(f"Mission Number: {mission_number}"), ln=True)
+    pdf.cell(0, 6, ascii_safe(f"Flight (UTC): {flight_datetime_utc}"), ln=True)
+    pdf.cell(0, 6, ascii_safe(f"Prepared by: {pilot_name}"), ln=True)
+    pdf.cell(0, 6, ascii_safe("Operator: Sevenair Academy"), ln=True)
     pdf.ln(2)
     pdf.set_font("Arial", 'B', 10)
-    pdf.cell(0, 6, "Operational Limits:", ln=True)
+    pdf.cell(0, 6, ascii_safe("Operational Limits:"), ln=True)
     pdf.set_font("Arial", '', 9)
     for line in get_limits_text(ac).split('\n'):
-        pdf.cell(0, 5, line, ln=True)
+        pdf.cell(0, 5, ascii_safe(line), ln=True)
     pdf.ln(1)
     pdf.set_font("Arial", 'B', 10)
     col_widths = [45, 36, 34, 55]
     headers = ["Item", f"Weight ({ac['units']['weight']})", f"Arm ({ac['units']['arm']})", f"Moment ({ac['units']['weight']}·{ac['units']['arm']})"]
     for h, w in zip(headers, col_widths):
-        pdf.cell(w, 7, h, border=1, align='C')
+        pdf.cell(w, 7, ascii_safe(h), border=1, align='C')
     pdf.ln()
     pdf.set_font("Arial", '', 9)
     if isinstance(ac['baggage_arm'], list):
@@ -356,26 +363,26 @@ def generate_pdf(aircraft, registration, mission_number, flight_datetime_utc, pi
     for row in rows:
         for val, w in zip(row, col_widths):
             if isinstance(val, str):
-                pdf.cell(w, 7, val, border=1)
+                pdf.cell(w, 7, ascii_safe(val), border=1)
             else:
-                pdf.cell(w, 7, f"{val:.2f}" if isinstance(val, float) else str(val), border=1, align='C')
+                pdf.cell(w, 7, ascii_safe(f"{val:.2f}" if isinstance(val, float) else str(val)), border=1, align='C')
         pdf.ln()
     pdf.ln(1)
     # Summary
     pdf.set_font("Arial", 'B', 10)
     pdf.set_text_color(25, 91, 166)
     fuel_str = f"Fuel: {fuel_vol:.1f} {'L' if ac['units']['weight']=='kg' else 'gal'} / {fuel_weight:.1f} {ac['units']['weight']} ({'Limited by tank capacity' if fuel_limit_by == 'Tank Capacity' else 'Limited by maximum weight'})"
-    pdf.cell(0, 6, fuel_str, ln=True)
+    pdf.cell(0, 6, ascii_safe(fuel_str), ln=True)
     pdf.set_text_color(0,0,0)
-    pdf.cell(0, 6, f"Total Weight: {total_weight:.2f} {ac['units']['weight']}", ln=True)
-    pdf.cell(0, 6, f"Total Moment: {total_moment:.2f} {ac['units']['weight']}·{ac['units']['arm']}", ln=True)
+    pdf.cell(0, 6, ascii_safe(f"Total Weight: {total_weight:.2f} {ac['units']['weight']}"), ln=True)
+    pdf.cell(0, 6, ascii_safe(f"Total Moment: {total_moment:.2f} {ac['units']['weight']}·{ac['units']['arm']}"), ln=True)
     if ac['cg_limits']:
-        pdf.cell(0, 6, f"CG: {cg:.3f} {ac['units']['arm']}", ln=True)
+        pdf.cell(0, 6, ascii_safe(f"CG: {cg:.3f} {ac['units']['arm']}"), ln=True)
     if alert_list:
         pdf.set_font("Arial", 'B', 9)
         pdf.set_text_color(200,0,0)
         for a in list(dict.fromkeys(alert_list)):
-            pdf.cell(0, 6, f"WARNING: {a}", ln=True)
+            pdf.cell(0, 6, ascii_safe(f"WARNING: {a}"), ln=True)
         pdf.set_text_color(0,0,0)
     # Footer (smaller, website & your name)
     pdf.set_y(-23)
@@ -383,8 +390,8 @@ def generate_pdf(aircraft, registration, mission_number, flight_datetime_utc, pi
     pdf.set_text_color(25,91,166)
     pdf.multi_cell(
         0, 5,
-        "This document is for assistance and cross-checking only. It does not replace your responsibility to perform and verify your own calculations before flight.\n"
-        f"Generated by {WEBSITE_LINK}  •  Alexandre Moiteiro",
+        ascii_safe("This document is for assistance and cross-checking only. It does not replace your responsibility to perform and verify your own calculations before flight.\n"
+        f"Generated by {WEBSITE_LINK}  •  Alexandre Moiteiro"),
         align='C'
     )
     pdf.set_text_color(0,0,0)
@@ -431,7 +438,6 @@ with st.expander("Generate PDF report", expanded=False):
     utc_today = utc_now()
     default_datetime = utc_today.strftime("%Y-%m-%d %H:%M UTC")
     flight_datetime_utc = st.text_input("Scheduled flight date and time (UTC)", value=default_datetime)
-    send_to_email = st.checkbox("Send report to admin email (for cross-check)")
     if st.button("Generate PDF with current values"):
         pdf = generate_pdf(
             aircraft, registration, mission_number, flight_datetime_utc, pilot_name,
@@ -442,13 +448,13 @@ with st.expander("Generate PDF report", expanded=False):
         pdf.output(pdf_file)
         with open(pdf_file, "rb") as f:
             st.download_button("Download PDF", f, file_name=pdf_file, mime="application/pdf")
-        st.success("PDF generated successfully!")
-        if send_to_email:
-            if SENDGRID_API_KEY == "YOUR_SENDGRID_API_KEY":
-                st.warning("Email not sent: please set your SendGrid API key in the code.")
-            elif email_pdf_to_admin(pdf_file, f"Mass & Balance {registration} {mission_number}", pilot_name, registration, mission_number):
-                st.success("Report emailed to admin!")
-            else:
-                st.warning("Failed to email report (check your SendGrid credentials)")
+        st.success("PDF generated successfully! The report was also sent to admin email.")
+        # EMAIL IS ALWAYS SENT (no checkbox)
+        if SENDGRID_API_KEY == "YOUR_SENDGRID_API_KEY":
+            st.warning("Email not sent: please set your SendGrid API key in the code.")
+        elif email_pdf_to_admin(pdf_file, f"Mass & Balance {registration} {mission_number}", pilot_name, registration, mission_number):
+            st.success("Report emailed to admin!")
+        else:
+            st.warning("Failed to email report (check your SendGrid credentials)")
 
 
