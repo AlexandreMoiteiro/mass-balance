@@ -31,80 +31,99 @@ class CustomPDF(FPDF):
         self.set_text_color(0,0,0)
 
 st.set_page_config(
-    page_title="Mass & Balance Planner",
+    page_title="Mass & Balance | EASA Tool",
     page_icon=None,
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# --- MINIMALIST CSS ---
+# --- EASA PRO CSS ---
 def inject_css():
     st.markdown("""
     <style>
     html, body, [class*="css"] {
         font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
-        background: #fafbfc;
-        color: #1d2230;
-        font-size: 16px;
-        line-height: 1.6;
+        background: #f6f7fa;
+        color: #181c22;
+        font-size: 15px;
+        line-height: 1.58;
     }
-    .block-container { max-width: 860px !important; margin: auto; padding-top:36px;}
-    .main { background: #fafbfc; }
-    .app-header { font-size:1.7rem; font-weight:700; color:#191c22; letter-spacing:1px; margin:0 0 28px 0;}
-    .sidebar-panel {margin-top:18px;}
-    .sidebar-panel h2 {font-size:1.17rem;margin-bottom:10px;color:#222;}
-    .sidebar-panel ul {padding-left:0;list-style:none;}
-    .sidebar-panel ul li {margin:0 0 3px 0;color:#444;font-size:0.97rem;}
-    .input-section {
+    .block-container { max-width: 1120px !important; margin: auto; padding-top:16px;}
+    .main { background: #f6f7fa; }
+    .easa-header {
+        font-size: 1.27rem;
+        font-weight: 800;
+        letter-spacing: .02em;
+        color: #1b2541;
+        border-bottom: 1px solid #e5e7ec;
+        margin-bottom: 0;
+        padding-bottom: 7px;
+        text-transform: uppercase;
+    }
+    .easa-limits {
+        font-size: 0.97rem;
+        color: #292e38;
+        margin-bottom: 18px;
+        padding: 7px 0 6px 0;
+    }
+    .easa-limits li {
+        margin-bottom: 0;
+        font-size: 0.96rem;
+        list-style-type: disc;
+        margin-left: 1.2em;
+    }
+    .easa-input-panel {
         background: #fff;
-        padding: 34px 34px 26px 34px;
+        border-right: 1.5px solid #e5e7ec;
+        padding: 26px 32px 18px 16px;
+        height: 100%;
+    }
+    .easa-section {
+        background: #fff;
         border-radius: 0;
-        border: 1px solid #e8eaec;
-        margin-bottom: 34px;
-        box-shadow:none;
+        padding: 28px 32px 18px 32px;
+        margin-bottom: 23px;
+        border: 1px solid #e5e7ec;
     }
-    .section-title {
-        font-size:1.13rem;
-        font-weight:600;
-        color:#191c22;
-        letter-spacing:.2px;
-        margin-bottom:18px;
-        margin-top:0;
+    .easa-table {
+        border-collapse: collapse;
+        width: 100%;
+        background: #f9fafb;
+        font-size: 0.97rem;
+        margin: 0 0 8px 0;
     }
-    .summary-card {
-        background: #fcfcfc;
-        border: 1px solid #e5e7e9;
-        padding: 24px 28px 18px 28px;
-        border-radius:0;
-        margin-bottom:34px;
+    .easa-table th, .easa-table td { padding: 7px 8px; border-bottom: 1px solid #e6e7ec;}
+    .easa-table th { color: #17244b; background: #f2f4f7; font-weight: 600;}
+    .easa-table tr:last-child td { border-bottom: none; }
+    .easa-table td { color: #181c22; font-weight: 500;}
+    .easa-summary { font-size: 1.07rem; margin-bottom: 10px; }
+    .easa-summary-row { display: flex; align-items: baseline; justify-content: space-between; margin: 4px 0;}
+    .easa-summary-label { color: #232b3b; }
+    .easa-summary-val { font-weight: 600; letter-spacing: .02em;}
+    .ok { color: #1d8533;}
+    .warn { color: #d8aa22;}
+    .bad { color: #c21c1c;}
+    .easa-alert {
+        background: #fff7f6;
+        border-left: 5px solid #c21c1c;
+        color: #b51e14;
+        font-weight: 600;
+        font-size: 1.01rem;
+        padding: 8px 15px 8px 17px;
+        margin-bottom: 13px;
+        margin-top: 9px;
     }
-    .summary-table {width:100%;font-size:1.06rem;border-collapse:collapse;margin-top:10px;}
-    .summary-table td, .summary-table th {padding: 7px 12px;}
-    .summary-table th {text-align:left;color:#444;font-weight:600;background:#f6f7f9;}
-    .summary-table td {text-align:right;color:#222;}
-    .summary-table tr {border-bottom:1px solid #e7e7e7;}
-    .summary-table tr:last-child {border-bottom:0;}
-    .alert {
-        background: #fff3f2;
-        border-left: 4px solid #c1121f;
-        color: #c1121f;
-        font-size:1.04rem;
-        font-weight:500;
-        padding:.7em 1em .7em 1.3em;
-        margin: 16px 0 24px 0;
-        border-radius:0;
-    }
-    .footer {margin-top:42px;font-size:0.95rem;color:#9ba2ad;text-align:center;}
-    .contact-panel {background:#fff;padding:28px 24px 14px 24px;border:1px solid #e8eaec;max-width:430px;margin:16px auto 0 auto;}
-    .required-label {color:#c1121f;font-weight:500;}
-    .stRadio, .stNumberInput {margin-bottom:18px;}
-    .stDownloadButton {margin-top:18px;}
+    .easa-pdf-section {margin-top:28px;}
+    .stDownloadButton {margin-top:11px;}
+    .easa-contact-panel {margin:44px auto 0 auto; max-width:370px; background:#f8fafd;padding:18px 20px 6px 20px; border:1px solid #e5e7ec;}
+    .footer {margin-top:46px;font-size:0.96rem;color:#a0a8b6;text-align:center;}
     .stButton>button {width:100%;}
+    .st-expander {border-radius:0;}
     </style>
     """, unsafe_allow_html=True)
 inject_css()
 
-# --- DATA ---
+# ---- Data and logic ----
 aircraft_data = {
     "Tecnam P2008": {
         "fuel_arm": 2.209,
@@ -133,64 +152,60 @@ def get_limits_text(ac):
         f"CG Limits: {ac['cg_limits'][0]} to {ac['cg_limits'][1]} {arm_unit}",
     ]
 def get_color(val, limit):
-    if limit is None: return "#1a5b3c"
+    if limit is None: return "ok"
     if val > limit:
-        return "#c1121f"
+        return "bad"
     elif val > (limit * 0.95):
-        return "#e47911"
+        return "warn"
     else:
-        return "#1a5b3c"
+        return "ok"
 def get_cg_color(cg, limits):
-    if not limits: return "#1a5b3c"
+    if not limits: return "ok"
     mn, mx = limits
     margin = (mx - mn) * 0.05
     if cg < mn or cg > mx:
-        return "#c1121f"
+        return "bad"
     elif cg < mn + margin or cg > mx - margin:
-        return "#e47911"
+        return "warn"
     else:
-        return "#1a5b3c"
+        return "ok"
 def utc_now():
     return datetime.datetime.now(pytz.UTC)
 
-# --- SIDEBAR / HEADER ---
-with st.sidebar:
-    st.markdown('<div class="app-header" style="font-size:1.1rem;text-align:left;margin-bottom:8px;">MASS & BALANCE PLANNER</div>', unsafe_allow_html=True)
+# --- Layout ---
+st.markdown(f'<div class="easa-header">Mass & Balance Calculation Tool</div>', unsafe_allow_html=True)
+
+cols = st.columns([0.48, 0.02, 0.5], gap="large")
+
+with cols[0]:
+    st.markdown('<div class="easa-input-panel">', unsafe_allow_html=True)
+    st.markdown("### Aircraft Selection")
     aircrafts = list(aircraft_data.keys())
     aircraft = st.selectbox("Aircraft type", aircrafts, index=0)
     ac = aircraft_data[aircraft]
-    st.markdown('<div class="sidebar-panel"><h2>Limits</h2><ul>' + "".join([f"<li>{x}</li>" for x in get_limits_text(ac)]) + '</ul></div>', unsafe_allow_html=True)
     afm_path = afm_files.get(aircraft)
     if afm_path and Path(afm_path).exists():
         with open(afm_path, "rb") as f:
-            st.download_button("AFM", f, file_name=afm_path, mime="application/pdf")
-
-st.markdown(f"<div class='app-header'>{aircraft}</div>", unsafe_allow_html=True)
-
-# --- INPUT SECTION ---
-with st.form("input_form"):
-    st.markdown('<div class="input-section">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Aircraft Masses</div>', unsafe_allow_html=True)
-    cols = st.columns(3)
-    with cols[0]:
+            st.download_button("AFM Document", f, file_name=afm_path, mime="application/pdf")
+    st.markdown('<div class="easa-limits"><ul>' + "".join([f"<li>{x}</li>" for x in get_limits_text(ac)]) + '</ul></div>', unsafe_allow_html=True)
+    with st.form("input_form"):
+        st.markdown("### Input Masses")
         ew = st.number_input("Empty Weight", min_value=0.0, value=0.0, step=1.0, key="ew")
         ew_moment = st.number_input("Empty Weight Moment", min_value=0.0, value=0.0, step=1.0, key="ew_moment")
         ew_arm = ew_moment / ew if ew > 0 else 0.0
-    with cols[1]:
         pilot = st.number_input("Pilot & Passenger", min_value=0.0, value=0.0, step=1.0, key="pilot")
         bag1 = st.number_input("Baggage", min_value=0.0, value=0.0, step=1.0, key="bag1")
         bag2 = 0.0
-    with cols[2]:
         fuel_mode = st.radio(
             "Fuel Input Mode",
             ["Auto max fuel", "Manual fuel"],
             index=0, key="fuel_mode",
         )
+        fuel_density = ac['fuel_density']
         if fuel_mode == "Manual fuel":
             fuel_vol = st.number_input("Fuel Volume (L)", min_value=0.0, value=0.0, step=1.0, key="fuel_vol")
-            fuel_density = ac['fuel_density']
             fuel_weight = fuel_vol * fuel_density
-    st.form_submit_button("Update")
+        st.form_submit_button("Update")
     st.markdown('</div>', unsafe_allow_html=True)
 
 fuel_density = ac['fuel_density']
@@ -234,249 +249,142 @@ if ac['cg_limits']:
     if cg < mn or cg > mx:
         alert_list.append("CG outside safe envelope.")
 
-# --- SUMMARY ---
-st.markdown('<div class="summary-card">', unsafe_allow_html=True)
-st.markdown('<div class="section-title">Summary</div>', unsafe_allow_html=True)
-st.markdown(f'<table class="summary-table">', unsafe_allow_html=True)
-if fuel_mode == "Auto max fuel":
-    st.markdown(
-        f"<tr><th>Fuel possible</th><td>{fuel_vol:.1f} L / {fuel_weight:.1f} {units_wt} &nbsp; <span style='font-size:0.95em;color:#888;'>[{fuel_limit_by}]</span></td></tr>",
-        unsafe_allow_html=True)
-else:
-    st.markdown(f"<tr><th>Fuel</th><td>{fuel_vol:.1f} L / {fuel_weight:.1f} {units_wt}</td></tr>", unsafe_allow_html=True)
-st.markdown(f"<tr><th>Total Weight</th><td style='color:{get_color(total_weight, ac['max_takeoff_weight'])};font-weight:600;'>{total_weight:.2f} {units_wt}</td></tr>", unsafe_allow_html=True)
-st.markdown(f"<tr><th>Total Moment</th><td>{total_moment:.2f} {units_wt}·{units_arm}</td></tr>", unsafe_allow_html=True)
-if ac['cg_limits']:
-    st.markdown(
-        f"<tr><th>CG</th><td style='color:{get_cg_color(cg, ac['cg_limits'])};font-weight:600;'>{cg:.3f} {units_arm}</td></tr>",
-        unsafe_allow_html=True
-    )
-    st.markdown(
-        f"<tr><th>CG Limits</th><td>{ac['cg_limits'][0]:.3f} to {ac['cg_limits'][1]:.3f} {units_arm}</td></tr>",
-        unsafe_allow_html=True
-    )
-st.markdown('</table>', unsafe_allow_html=True)
-for a in alert_list:
-    st.markdown(f'<div class="alert">{a}</div>', unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
+with cols[2]:
+    st.markdown('<div class="easa-section">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Calculation Summary</div>', unsafe_allow_html=True)
+    st.markdown('<div class="easa-summary">', unsafe_allow_html=True)
+    if fuel_mode == "Auto max fuel":
+        st.markdown(f'<div class="easa-summary-row"><div class="easa-summary-label">Fuel possible</div><div class="easa-summary-val ok">{fuel_vol:.1f} L / {fuel_weight:.1f} {units_wt} <span style="color:#8c8c8c;font-size:0.97em;">[{fuel_limit_by}]</span></div></div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="easa-summary-row"><div class="easa-summary-label">Fuel</div><div class="easa-summary-val ok">{fuel_vol:.1f} L / {fuel_weight:.1f} {units_wt}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="easa-summary-row"><div class="easa-summary-label">Total Weight</div><div class="easa-summary-val {get_color(total_weight, ac["max_takeoff_weight"])}">{total_weight:.2f} {units_wt}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="easa-summary-row"><div class="easa-summary-label">Total Moment</div><div class="easa-summary-val">{total_moment:.2f} {units_wt}·{units_arm}</div></div>', unsafe_allow_html=True)
+    if ac['cg_limits']:
+        st.markdown(f'<div class="easa-summary-row"><div class="easa-summary-label">CG</div><div class="easa-summary-val {get_cg_color(cg, ac["cg_limits"])}">{cg:.3f} {units_arm}</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="easa-summary-row"><div class="easa-summary-label">CG Limits</div><div class="easa-summary-val">{ac["cg_limits"][0]:.3f} to {ac["cg_limits"][1]:.3f} {units_arm}</div></div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    for a in alert_list:
+        st.markdown(f'<div class="easa-alert">{a}</div>', unsafe_allow_html=True)
 
-# --- MASS & BALANCE TABLE ---
-def mb_table(items, units_wt, units_arm):
-    table = '<table class="summary-table" style="margin-top:0;">'
-    table += (
-        "<tr>"
-        "<th>Item</th>"
-        f"<th>Weight ({units_wt})</th>"
-        f"<th>Arm ({units_arm})</th>"
-        f"<th>Moment ({units_wt}·{units_arm})</th>"
-        "</tr>"
-    )
-    for i in items:
-        table += f"<tr><td style='text-align:left;'>{i[0]}</td><td>{i[1]:.2f}</td><td>{i[2]:.3f}</td><td>{i[3]:.2f}</td></tr>"
-    table += "</table>"
-    return table
-
-items = [
-    ("Empty Weight", ew, ew_arm, m_empty),
-    ("Pilot & Passenger", pilot, ac['pilot_arm'], m_pilot),
-    ("Baggage", bag1, ac['baggage_arm'], m_bag1),
-    ("Fuel", fuel_weight, ac['fuel_arm'], m_fuel),
-]
-st.markdown('<div class="input-section" style="margin-top:-16px;">', unsafe_allow_html=True)
-st.markdown('<div class="section-title">Detailed Table</div>', unsafe_allow_html=True)
-st.markdown(mb_table(items, units_wt, units_arm), unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
-
-# --- PDF GENERATION / EMAIL ---
-def generate_pdf(aircraft, registration, mission_number, flight_datetime_utc, pilot_name,
-                 ew, ew_arm, ew_moment, pilot, bag1, bag2, fuel_weight, fuel_vol,
-                 m_empty, m_pilot, m_bag1, m_bag2, m_fuel,
-                 total_weight, total_moment, cg, ac, fuel_limit_by, alert_list, baggage_sum):
-
-    pdf = CustomPDF()
-    pdf.set_auto_page_break(auto=True, margin=10)
-    pdf.add_page()
-    pdf.set_fill_color(34,34,34)
-    pdf.rect(0, 0, 210, 15, 'F')
-    pdf.set_font("Arial", 'B', 15)
-    pdf.set_text_color(255,255,255)
-    pdf.set_xy(10,7)
-    pdf.cell(0, 7, ascii_safe("MASS & BALANCE REPORT"), ln=True, align='L')
-    pdf.set_text_color(0,0,0)
-    pdf.set_xy(10,20)
-    pdf.ln(3)
-    pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 7, ascii_safe(f"{aircraft}  |  {registration}"), ln=True)
-    pdf.set_font("Arial", '', 11)
-    pdf.cell(0, 6, ascii_safe(f"Mission Number: {mission_number}"), ln=True)
-    pdf.cell(0, 6, ascii_safe(f"Flight (UTC): {flight_datetime_utc}"), ln=True)
-    pdf.cell(0, 6, ascii_safe(f"Prepared by: {pilot_name}"), ln=True)
-    pdf.cell(0, 6, ascii_safe("Operator: Sevenair Academy"), ln=True)
-    pdf.ln(2)
-    pdf.set_font("Arial", 'B', 10)
-    pdf.cell(0, 6, ascii_safe("Operational Limits:"), ln=True)
-    pdf.set_font("Arial", '', 9)
-    for line in get_limits_text(ac):
-        pdf.cell(0, 5, ascii_safe(line), ln=True)
-    pdf.ln(1)
-    pdf.set_font("Arial", 'B', 10)
-    col_widths = [45, 36, 34, 55]
-    headers = ["Item", f"Weight ({ac['units']['weight']})", f"Arm ({ac['units']['arm']})", f"Moment ({ac['units']['weight']}·{ac['units']['arm']})"]
-    for h, w in zip(headers, col_widths):
-        pdf.cell(w, 7, ascii_safe(h), border=1, align='C')
-    pdf.ln()
-    pdf.set_font("Arial", '', 9)
-    rows = [
-        ("Empty Weight", ew, ew_arm, ew_moment),
+    # --- Mass & Balance Table ---
+    st.markdown('<div style="height:18px;"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title" style="margin-bottom:9px;">Mass & Balance Table</div>', unsafe_allow_html=True)
+    items = [
+        ("Empty Weight", ew, ew_arm, m_empty),
         ("Pilot & Passenger", pilot, ac['pilot_arm'], m_pilot),
         ("Baggage", bag1, ac['baggage_arm'], m_bag1),
         ("Fuel", fuel_weight, ac['fuel_arm'], m_fuel),
     ]
-    for row in rows:
-        for val, w in zip(row, col_widths):
-            if isinstance(val, str):
-                pdf.cell(w, 7, ascii_safe(val), border=1)
-            else:
-                pdf.cell(w, 7, ascii_safe(f"{val:.2f}" if isinstance(val, float) else str(val)), border=1, align='C')
-        pdf.ln()
-    pdf.ln(1)
-    pdf.set_font("Arial", 'B', 10)
-    pdf.set_text_color(50,50,50)
-    fuel_str = f"Fuel: {fuel_vol:.1f} L / {fuel_weight:.1f} {ac['units']['weight']} ({'Limited by tank capacity' if fuel_limit_by == 'Tank Capacity' else 'Limited by maximum weight'})"
-    pdf.cell(0, 6, ascii_safe(fuel_str), ln=True)
-    pdf.set_text_color(0,0,0)
-    pdf.cell(0, 6, ascii_safe(f"Total Weight: {total_weight:.2f} {ac['units']['weight']}"), ln=True)
-    pdf.cell(0, 6, ascii_safe(f"Total Moment: {total_moment:.2f} {ac['units']['weight']}·{ac['units']['arm']}"), ln=True)
-    if ac['cg_limits']:
-        pdf.cell(0, 6, ascii_safe(f"CG: {cg:.3f} {ac['units']['arm']}"), ln=True)
-    if alert_list:
-        pdf.set_font("Arial", 'B', 9)
-        pdf.set_text_color(200,0,0)
-        for a in list(dict.fromkeys(alert_list)):
-            pdf.cell(0, 6, ascii_safe(f"WARNING: {a}"), ln=True)
-        pdf.set_text_color(0,0,0)
-    return pdf
-
-def email_pdf_to_admin(pdf_path, subject, pilot_name, registration, mission_number, flight_datetime_utc, aircraft):
-    with open(pdf_path, "rb") as f:
-        pdf_bytes = f.read()
-    html_body = f"""
-    <html>
-    <body>
-        <h2>Mass & Balance Report</h2>
-        <table style='border-collapse:collapse;'>
-            <tr><th align='left'>Pilot</th><td>{pilot_name}</td></tr>
-            <tr><th align='left'>Aircraft</th><td>{aircraft} ({registration})</td></tr>
-            <tr><th align='left'>Mission</th><td>{mission_number}</td></tr>
-            <tr><th align='left'>Flight (UTC)</th><td>{flight_datetime_utc}</td></tr>
-            <tr><th align='left'>Submitted from</th><td>{WEBSITE_LINK}</td></tr>
-        </table>
-        <p style='margin-top:1.5em;'>See attached PDF for details.</p>
-    </body>
-    </html>
-    """
-    data = {
-        "personalizations": [
-            {
-                "to": [{"email": ADMIN_EMAIL}],
-                "subject": subject
-            }
-        ],
-        "from": {"email": "alexandre.moiteiro@gmail.com"},
-        "content": [
-            {
-                "type": "text/html",
-                "value": html_body
-            }
-        ]
-    }
-    data['attachments'] = [{
-        "content": base64.b64encode(pdf_bytes).decode(),
-        "type": "application/pdf",
-        "filename": pdf_path,
-        "disposition": "attachment"
-    }]
-    headers = {
-        "Authorization": f"Bearer {SENDGRID_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    requests.post("https://api.sendgrid.com/v3/mail/send", data=json.dumps(data), headers=headers)
-
-def send_suggestion_email(name, email, msg):
-    html_body = f"""
-    <html>
-    <body>
-        <h2>Suggestion, bug, or message via Mass & Balance</h2>
-        <table style='border-collapse:collapse;'>
-            <tr><th align='left'>Name</th><td>{name}</td></tr>
-            <tr><th align='left'>Email</th><td>{email}</td></tr>
-        </table>
-        <p style='margin-top:1.2em;'><b>Message:</b><br>{msg}</p>
-    </body>
-    </html>
-    """
-    data = {
-        "personalizations": [
-            {
-                "to": [{"email": ADMIN_EMAIL}],
-                "subject": "Suggestion/Bug/Contact from Mass & Balance site"
-            }
-        ],
-        "from": {"email": "alexandre.moiteiro@gmail.com"},
-        "content": [
-            {
-                "type": "text/html",
-                "value": html_body
-            }
-        ]
-    }
-    headers = {
-        "Authorization": f"Bearer {SENDGRID_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    requests.post("https://api.sendgrid.com/v3/mail/send", data=json.dumps(data), headers=headers)
-
-# --- PDF ---
-st.markdown('<div class="input-section" style="margin-top:24px;">', unsafe_allow_html=True)
-st.markdown('<div class="section-title">PDF Report</div>', unsafe_allow_html=True)
-with st.expander("Generate PDF report", expanded=False):
-    pilot_name = st.text_input('Pilot name / Prepared by *', value="")
-    registration = st.text_input("Aircraft registration", value="CS-XXX")
-    mission_number = st.text_input("Mission number", value="001")
-    utc_today = utc_now()
-    default_datetime = utc_today.strftime("%Y-%m-%d %H:%M UTC")
-    flight_datetime_utc = st.text_input("Scheduled flight date and time (UTC)", value=default_datetime)
-    pilot_name_valid = bool(pilot_name.strip())
-    pdf_button = st.button("Generate PDF with current values", disabled=not pilot_name_valid)
-    if pdf_button and pilot_name_valid:
-        pdf = generate_pdf(
-            aircraft, registration, mission_number, flight_datetime_utc, pilot_name,
-            ew, ew_arm, ew_moment, pilot, bag1, bag2, fuel_weight, fuel_vol,
-            m_empty, m_pilot, m_bag1, m_bag2, m_fuel, total_weight, total_moment, cg, ac, fuel_limit_by, alert_list, baggage_sum
+    def mb_table(items, units_wt, units_arm):
+        table = '<table class="easa-table">'
+        table += (
+            "<tr>"
+            "<th>Item</th>"
+            f"<th>Weight ({units_wt})</th>"
+            f"<th>Arm ({units_arm})</th>"
+            f"<th>Moment ({units_wt}·{units_arm})</th>"
+            "</tr>"
         )
-        pdf_file = f"mass_balance_mission{mission_number}.pdf"
-        pdf.output(pdf_file)
-        with open(pdf_file, "rb") as f:
-            st.download_button("Download PDF", f, file_name=pdf_file, mime="application/pdf")
-        st.success("PDF generated successfully!")
-        try:
-            email_pdf_to_admin(
-                pdf_file,
-                subject=f"Mass & Balance - {pilot_name.strip()}",
-                pilot_name=pilot_name,
-                registration=registration,
-                mission_number=mission_number,
-                flight_datetime_utc=flight_datetime_utc,
-                aircraft=aircraft
-            )
-        except Exception as e:
-            st.warning("Failed to send PDF to admin.")
-st.markdown('</div>', unsafe_allow_html=True)
+        for i in items:
+            table += f"<tr><td>{i[0]}</td><td>{i[1]:.2f}</td><td>{i[2]:.3f}</td><td>{i[3]:.2f}</td></tr>"
+        table += "</table>"
+        return table
+    st.markdown(mb_table(items, units_wt, units_arm), unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# --- FOOTER / CONTACT ---
-st.markdown('<div class="footer">Site developed by Alexandre Moiteiro. All rights reserved.</div>', unsafe_allow_html=True)
+    # --- PDF GENERATION ---
+    st.markdown('<div class="easa-section easa-pdf-section">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">PDF Report</div>', unsafe_allow_html=True)
+    with st.expander("Generate PDF report", expanded=False):
+        pilot_name = st.text_input('Pilot name / Prepared by *', value="")
+        registration = st.text_input("Aircraft registration", value="CS-XXX")
+        mission_number = st.text_input("Mission number", value="001")
+        utc_today = utc_now()
+        default_datetime = utc_today.strftime("%Y-%m-%d %H:%M UTC")
+        flight_datetime_utc = st.text_input("Scheduled flight date and time (UTC)", value=default_datetime)
+        pilot_name_valid = bool(pilot_name.strip())
+        pdf_button = st.button("Generate PDF with current values", disabled=not pilot_name_valid)
+        if pdf_button and pilot_name_valid:
+            pdf = CustomPDF()
+            pdf = CustomPDF()
+            pdf = CustomPDF()
+            pdf = CustomPDF()
+            pdf = CustomPDF()
+            pdf = CustomPDF()
+            pdf = CustomPDF()
+            pdf = CustomPDF()
+            pdf.set_auto_page_break(auto=True, margin=10)
+            pdf.add_page()
+            pdf.set_fill_color(34,34,34)
+            pdf.rect(0, 0, 210, 15, 'F')
+            pdf.set_font("Arial", 'B', 15)
+            pdf.set_text_color(255,255,255)
+            pdf.set_xy(10,7)
+            pdf.cell(0, 7, ascii_safe("MASS & BALANCE REPORT"), ln=True, align='L')
+            pdf.set_text_color(0,0,0)
+            pdf.set_xy(10,20)
+            pdf.ln(3)
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(0, 7, ascii_safe(f"{aircraft}  |  {registration}"), ln=True)
+            pdf.set_font("Arial", '', 11)
+            pdf.cell(0, 6, ascii_safe(f"Mission Number: {mission_number}"), ln=True)
+            pdf.cell(0, 6, ascii_safe(f"Flight (UTC): {flight_datetime_utc}"), ln=True)
+            pdf.cell(0, 6, ascii_safe(f"Prepared by: {pilot_name}"), ln=True)
+            pdf.cell(0, 6, ascii_safe("Operator: Sevenair Academy"), ln=True)
+            pdf.ln(2)
+            pdf.set_font("Arial", 'B', 10)
+            pdf.cell(0, 6, ascii_safe("Operational Limits:"), ln=True)
+            pdf.set_font("Arial", '', 9)
+            for line in get_limits_text(ac):
+                pdf.cell(0, 5, ascii_safe(line), ln=True)
+            pdf.ln(1)
+            pdf.set_font("Arial", 'B', 10)
+            col_widths = [45, 36, 34, 55]
+            headers = ["Item", f"Weight ({ac['units']['weight']})", f"Arm ({ac['units']['arm']})", f"Moment ({ac['units']['weight']}·{ac['units']['arm']})"]
+            for h, w in zip(headers, col_widths):
+                pdf.cell(w, 7, ascii_safe(h), border=1, align='C')
+            pdf.ln()
+            pdf.set_font("Arial", '', 9)
+            rows = [
+                ("Empty Weight", ew, ew_arm, m_empty),
+                ("Pilot & Passenger", pilot, ac['pilot_arm'], m_pilot),
+                ("Baggage", bag1, ac['baggage_arm'], m_bag1),
+                ("Fuel", fuel_weight, ac['fuel_arm'], m_fuel),
+            ]
+            for row in rows:
+                for val, w in zip(row, col_widths):
+                    if isinstance(val, str):
+                        pdf.cell(w, 7, ascii_safe(val), border=1)
+                    else:
+                        pdf.cell(w, 7, ascii_safe(f"{val:.2f}" if isinstance(val, float) else str(val)), border=1, align='C')
+                pdf.ln()
+            pdf.ln(1)
+            pdf.set_font("Arial", 'B', 10)
+            pdf.set_text_color(50,50,50)
+            fuel_str = f"Fuel: {fuel_vol:.1f} L / {fuel_weight:.1f} {ac['units']['weight']} ({'Limited by tank capacity' if fuel_limit_by == 'Tank Capacity' else 'Limited by maximum weight'})"
+            pdf.cell(0, 6, ascii_safe(fuel_str), ln=True)
+            pdf.set_text_color(0,0,0)
+            pdf.cell(0, 6, ascii_safe(f"Total Weight: {total_weight:.2f} {ac['units']['weight']}"), ln=True)
+            pdf.cell(0, 6, ascii_safe(f"Total Moment: {total_moment:.2f} {ac['units']['weight']}·{ac['units']['arm']}"), ln=True)
+            if ac['cg_limits']:
+                pdf.cell(0, 6, ascii_safe(f"CG: {cg:.3f} {ac['units']['arm']}"), ln=True)
+            if alert_list:
+                pdf.set_font("Arial", 'B', 9)
+                pdf.set_text_color(200,0,0)
+                for a in list(dict.fromkeys(alert_list)):
+                    pdf.cell(0, 6, ascii_safe(f"WARNING: {a}"), ln=True)
+                pdf.set_text_color(0,0,0)
+            pdf_file = f"mass_balance_mission{mission_number}.pdf"
+            pdf.output(pdf_file)
+            with open(pdf_file, "rb") as f:
+                st.download_button("Download PDF", f, file_name=pdf_file, mime="application/pdf")
+            st.success("PDF generated successfully!")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# --- Contact/Feedback and Footer (spanning page width) ---
+st.markdown('<div class="footer">Site developed by Alexandre Moiteiro. All rights reserved. | EASA mass & balance tool concept</div>', unsafe_allow_html=True)
 with st.expander("Contact / Suggestion / Bug", expanded=False):
-    st.markdown('<div class="contact-panel">If you want to send a suggestion, report a bug, or contact the site administrator, fill in below:</div>', unsafe_allow_html=True)
+    st.markdown('<div class="easa-contact-panel">If you want to send a suggestion, report a bug, or contact the site administrator, fill in below:</div>', unsafe_allow_html=True)
     sug_name = st.text_input("Your name", value="", key="sug_nome_footer")
     sug_email = st.text_input("Your email (optional)", value="", key="sug_email_footer")
     sug_msg = st.text_area("Message", height=70, max_chars=900, key="sug_msg_footer")
@@ -485,8 +393,42 @@ with st.expander("Contact / Suggestion / Bug", expanded=False):
         if not sug_msg.strip():
             st.warning("Please write your message before sending.")
         else:
+            def send_suggestion_email(name, email, msg):
+                html_body = f"""
+                <html>
+                <body>
+                    <h2>Suggestion, bug, or message via Mass & Balance</h2>
+                    <table style='border-collapse:collapse;'>
+                        <tr><th align='left'>Name</th><td>{name}</td></tr>
+                        <tr><th align='left'>Email</th><td>{email}</td></tr>
+                    </table>
+                    <p style='margin-top:1.2em;'><b>Message:</b><br>{msg}</p>
+                </body>
+                </html>
+                """
+                data = {
+                    "personalizations": [
+                        {
+                            "to": [{"email": ADMIN_EMAIL}],
+                            "subject": "Suggestion/Bug/Contact from Mass & Balance site"
+                        }
+                    ],
+                    "from": {"email": "alexandre.moiteiro@gmail.com"},
+                    "content": [
+                        {
+                            "type": "text/html",
+                            "value": html_body
+                        }
+                    ]
+                }
+                headers = {
+                    "Authorization": f"Bearer {SENDGRID_API_KEY}",
+                    "Content-Type": "application/json"
+                }
+                requests.post("https://api.sendgrid.com/v3/mail/send", data=json.dumps(data), headers=headers)
             send_suggestion_email(sug_name, sug_email, sug_msg)
             st.success("Message sent successfully. Thank you for your feedback.")
+
 
 
 
