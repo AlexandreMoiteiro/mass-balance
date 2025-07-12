@@ -52,11 +52,14 @@ def inject_css():
         .stDownloadButton { margin-top: 15px !important; }
         .easa-pdf-footer { font-size:9px;color:#195ba6;opacity:0.85; }
         .required-field {color:#b30000;font-weight:bold;}
+        .site-copyright { font-size: 0.93rem; color: #888; text-align: center; margin-top: 40px; margin-bottom: 10px; }
+        .soon-aircraft { color: #888; font-size: 1rem; margin-bottom: 0.7em; }
+        .suggestion-box { background: #f0f4fa; padding: 1.2em 1em 1em 1em; border-radius: 8px; margin-top:1.3em; }
         </style>
     """, unsafe_allow_html=True)
 inject_css()
 
-# --------- Apenas Tecnam disponível ---------
+# Apenas Tecnam disponível, mas selectbox habilitado para futuro
 aircraft_data = {
     "Tecnam P2008": {
         "fuel_arm": 2.209,
@@ -121,7 +124,8 @@ def utc_now():
 
 with st.sidebar:
     st.markdown('<span class="easa-header">Mass & Balance</span>', unsafe_allow_html=True)
-    aircraft = "Tecnam P2008"
+    st.markdown('<span class="soon-aircraft">Mais aeronaves disponíveis em breve.</span>', unsafe_allow_html=True)
+    aircraft = st.selectbox("Tipo de Aeronave", list(aircraft_data.keys()), index=0)
     ac = aircraft_data[aircraft]
     icon_path = icons.get(aircraft)
     if icon_path and Path(icon_path).exists():
@@ -375,6 +379,55 @@ def email_pdf_to_admin(pdf_path, subject, pilot_name, registration, mission_numb
     }
     requests.post("https://api.sendgrid.com/v3/mail/send", data=json.dumps(data), headers=headers)
 
+def send_suggestion_email(name, email, msg):
+    html_body = f"""
+    <html>
+    <body>
+        <h2>Sugestão, bug ou mensagem recebida pelo site</h2>
+        <table style='border-collapse:collapse;'>
+            <tr><th align='left'>Nome</th><td>{name}</td></tr>
+            <tr><th align='left'>Email</th><td>{email}</td></tr>
+        </table>
+        <p style='margin-top:1.2em;'><b>Mensagem:</b><br>{msg}</p>
+    </body>
+    </html>
+    """
+    data = {
+        "personalizations": [
+            {
+                "to": [{"email": ADMIN_EMAIL}],
+                "subject": "Sugestão/Bug/Contato pelo site Mass & Balance"
+            }
+        ],
+        "from": {"email": "alexandre.moiteiro@gmail.com"},
+        "content": [
+            {
+                "type": "text/html",
+                "value": html_body
+            }
+        ]
+    }
+    headers = {
+        "Authorization": f"Bearer {SENDGRID_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    requests.post("https://api.sendgrid.com/v3/mail/send", data=json.dumps(data), headers=headers)
+
+# ----------- SUGESTÃO/BUG BOX -----------
+with st.expander("Sugestão, bug ou mensagem ao administrador", expanded=False):
+    st.markdown('<div class="suggestion-box">Se quiser enviar alguma sugestão, reportar um bug ou apenas contactar o administrador do site, preencha abaixo:</div>', unsafe_allow_html=True)
+    sug_name = st.text_input("Seu nome", value="", key="sug_nome")
+    sug_email = st.text_input("Seu email (opcional)", value="", key="sug_email")
+    sug_msg = st.text_area("Mensagem", height=100, max_chars=900, key="sug_msg")
+    sug_send = st.button("Enviar mensagem", key="sug_btn")
+    if sug_send:
+        if not sug_msg.strip():
+            st.warning("Por favor, preencha a mensagem antes de enviar.")
+        else:
+            send_suggestion_email(sug_name, sug_email, sug_msg)
+            st.success("Mensagem enviada com sucesso! Obrigado pelo seu contacto.")
+
+# ----------- PDF REPORT -----------
 st.markdown('<div class="easa-section-title">PDF Report</div>', unsafe_allow_html=True)
 with st.expander("Generate PDF report", expanded=False):
     st.markdown('<span class="required-field">*</span> <span style="color:#b30000">Pilot name is required</span>', unsafe_allow_html=True)
@@ -409,3 +462,6 @@ with st.expander("Generate PDF report", expanded=False):
             )
         except Exception as e:
             print("Email failed:", e)
+
+# ---------- COPYRIGHT ----------
+st.markdown('<div class="site-copyright">Site desenvolvido por Alexandre Moiteiro. Todos os direitos reservados.</div>', unsafe_allow_html=True)
