@@ -410,7 +410,7 @@ def email_pdf_to_admin(pdf_path, subject, pilot_name, registration, mission_numb
                 "subject": subject
             }
         ],
-        "from": {"email": "your_verified_email@domain.com"},  # Use your verified sender!
+        "from": {"email": "alexandre.moiteiro@gmail.com"},  # Use your verified sender!
         "content": [
             {
                 "type": "text/html",
