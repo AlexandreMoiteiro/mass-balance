@@ -2,8 +2,9 @@ import streamlit as st
 from fpdf import FPDF
 import datetime
 from pathlib import Path
+import pytz
 
-# === Aircraft DATA (arms, weights, baggage areas, etc) ===
+# --- Aircraft DATA ---
 icons = {
     "Tecnam P2008": "tecnam_icon.png",
     "Cessna 150": "cessna_icon.png",
@@ -30,11 +31,11 @@ aircraft_data = {
     "Cessna 150": {
         "fuel_arm": 42.0,
         "pilot_arm": 35.0,
-        "baggage_arm": [70.0, 90.0],  # Area 1, Area 2
+        "baggage_arm": [70.0, 90.0],
         "max_takeoff_weight": 1600,
         "max_fuel_volume": 22.5,
         "max_passenger_weight": None,
-        "max_baggage_weight": [120, 40],  # Area 1, Area 2
+        "max_baggage_weight": [120, 40],
         "cg_limits": None,
         "fuel_density": 6.0,
         "units": {"weight": "lb", "arm": "in"}
@@ -64,8 +65,6 @@ def get_limits_text(ac):
     if isinstance(ac["max_baggage_weight"], list):
         lines.append(f"Max Baggage Area 1: {ac['max_baggage_weight'][0]} {units}")
         lines.append(f"Max Baggage Area 2: {ac['max_baggage_weight'][1]} {units}")
-        if sum(ac["max_baggage_weight"]) < 120 and units == "lb":
-            lines.append("Combined baggage max: 120 lb")
     else:
         lines.append(f"Max Baggage: {ac['max_baggage_weight']} {units}")
     if ac.get("cg_limits"):
@@ -92,6 +91,15 @@ def get_cg_color(cg, limits):
     else:
         return "green"
 
+def colorize(text, color, bold=True):
+    style = f"color:{color};"
+    if bold:
+        style += "font-weight:bold;"
+    return f"<span style='{style}'>{text}</span>"
+
+def utc_now():
+    return datetime.datetime.now(pytz.UTC)
+
 # === SIDEBAR ===
 with st.sidebar:
     aircraft = st.selectbox("Select Aircraft", list(aircraft_data.keys()))
@@ -106,7 +114,7 @@ with st.sidebar:
         with open(afm_path, "rb") as f:
             st.download_button("Download Aircraft Flight Manual (AFM)", f, file_name=afm_path, mime="application/pdf")
 
-# === Top center: Aircraft name ===
+# === TOP: AIRCRAFT NAME ===
 st.markdown(f"<h1 style='text-align:center'>{aircraft}</h1>", unsafe_allow_html=True)
 
 # === FUEL MODE ===
@@ -117,70 +125,69 @@ fuel_mode = st.radio(
     index=0
 )
 
-# === INPUTS ===
+# === INPUTS + LIMITS, WITH ERRORS/DYNAMIC COLOR ===
+fields = {}
+field_warnings = {}
+
+def input_field(label, key, minv, maxv, val, units, step=1.0, fmt="%.2f"):
+    field = st.number_input(
+        f"{label} ({units})",
+        min_value=minv,
+        max_value=maxv,
+        value=val,
+        step=step,
+        format=fmt,
+        key=key
+    )
+    # Check for limits
+    warn = None
+    color = "black"
+    if field > maxv:
+        warn = f"Exceeded {label.lower()} limit!"
+        color = "red"
+    elif field > maxv * 0.95:
+        warn = f"Approaching {label.lower()} limit."
+        color = "orange"
+    fields[key] = field
+    field_warnings[key] = (warn, color)
+    return field
+
 if isinstance(ac['baggage_arm'], list):
-    # Two baggage areas (Cessna)
+    # Cessna - two baggage
     col1, col2, col3, col4, col5, col6 = st.columns([2, 2, 2, 2, 2, 2])
     with col1:
-        ew = st.number_input(
-            f"Empty Weight ({ac['units']['weight']})",
-            min_value=0.0,
-            max_value=float(ac['max_takeoff_weight']),
-            value=0.0, step=1.0, format="%.2f")
+        ew = input_field("Empty Weight", "ew", 0.0, float(ac['max_takeoff_weight']), 0.0, ac['units']['weight'])
     with col2:
-        ew_arm = st.number_input(
-            f"EW Arm ({ac['units']['arm']})",
-            min_value=0.0,
-            max_value=200.0 if ac['units']['arm'] == "in" else 10.0,
-            value=0.0, step=0.001, format="%.3f")
+        ew_arm = input_field("EW Arm", "ew_arm", 0.0, 200.0 if ac['units']['arm'] == "in" else 10.0, 0.0, ac['units']['arm'], step=0.001, fmt="%.3f")
     with col3:
-        pilot = st.number_input(
-            f"Pilot & Passenger ({ac['units']['weight']})",
-            min_value=0.0,
-            max_value=400.0,  # No explicit limit
-            value=0.0, step=1.0, format="%.2f")
+        pilot = input_field("Pilot & Passenger", "pilot", 0.0, 400.0, 0.0, ac['units']['weight'])
     with col4:
-        bag1 = st.number_input(
-            f"Baggage Area 1 ({ac['units']['weight']})",
-            min_value=0.0,
-            max_value=float(ac['max_baggage_weight'][0]),
-            value=0.0, step=1.0, format="%.2f")
+        bag1 = input_field("Baggage Area 1", "bag1", 0.0, float(ac['max_baggage_weight'][0]), 0.0, ac['units']['weight'])
     with col5:
-        bag2 = st.number_input(
-            f"Baggage Area 2 ({ac['units']['weight']})",
-            min_value=0.0,
-            max_value=float(ac['max_baggage_weight'][1]),
-            value=0.0, step=1.0, format="%.2f")
+        bag2 = input_field("Baggage Area 2", "bag2", 0.0, float(ac['max_baggage_weight'][1]), 0.0, ac['units']['weight'])
+    # Show warnings under each field
+    for idx, key in enumerate(["ew", "ew_arm", "pilot", "bag1", "bag2"]):
+        warn, color = field_warnings[key]
+        if warn:
+            st.markdown(colorize(warn, color), unsafe_allow_html=True)
 else:
-    # Tecnam P2008
     col1, col2, col3, col4, col5 = st.columns([2, 2, 2, 2, 2])
     with col1:
-        ew = st.number_input(
-            f"Empty Weight ({ac['units']['weight']})",
-            min_value=0.0,
-            max_value=float(ac['max_takeoff_weight']),
-            value=0.0, step=1.0, format="%.2f")
+        ew = input_field("Empty Weight", "ew", 0.0, float(ac['max_takeoff_weight']), 0.0, ac['units']['weight'])
     with col2:
-        ew_arm = st.number_input(
-            f"EW Arm ({ac['units']['arm']})",
-            min_value=0.0,
-            max_value=10.0,
-            value=0.0, step=0.001, format="%.3f")
+        ew_arm = input_field("EW Arm", "ew_arm", 0.0, 10.0, 0.0, ac['units']['arm'], step=0.001, fmt="%.3f")
     with col3:
-        pilot = st.number_input(
-            f"Pilot & Passenger ({ac['units']['weight']})",
-            min_value=0.0,
-            max_value=float(ac['max_passenger_weight']),
-            value=0.0, step=1.0, format="%.2f")
+        pilot = input_field("Pilot & Passenger", "pilot", 0.0, float(ac['max_passenger_weight']), 0.0, ac['units']['weight'])
     with col4:
-        bag1 = st.number_input(
-            f"Baggage ({ac['units']['weight']})",
-            min_value=0.0,
-            max_value=float(ac['max_baggage_weight']),
-            value=0.0, step=1.0, format="%.2f")
-    bag2 = 0.0  # Not used
+        bag1 = input_field("Baggage", "bag1", 0.0, float(ac['max_baggage_weight']), 0.0, ac['units']['weight'])
+    bag2 = 0.0
+    # Show warnings under each field
+    for idx, key in enumerate(["ew", "ew_arm", "pilot", "bag1"]):
+        warn, color = field_warnings[key]
+        if warn:
+            st.markdown(colorize(warn, color), unsafe_allow_html=True)
 
-# === Fuel calculation, limitation logic ===
+# === FUEL CALCULATION LOGIC ===
 fuel_density = ac['fuel_density']
 units_wt = ac['units']['weight']
 units_arm = ac['units']['arm']
@@ -192,23 +199,17 @@ if fuel_mode == "Automatic maximum fuel (default)":
     if fuel_weight_possible <= tank_capacity_weight:
         fuel_weight = fuel_weight_possible
         fuel_vol = fuel_weight / fuel_density
-        fuel_limit_by = "Maximum weight"
+        fuel_limit_by = "Maximum Weight"
     else:
         fuel_weight = tank_capacity_weight
         fuel_vol = ac['max_fuel_volume']
-        fuel_limit_by = "Tank capacity"
-    fuel_note = "(auto-calculated for max weight/tank)"
+        fuel_limit_by = "Tank Capacity"
 else:
-    fuel_vol = st.number_input(
-        f"Fuel Volume ({'L' if units_wt=='kg' else 'gal'})",
-        min_value=0.0, max_value=float(ac['max_fuel_volume']),
-        value=0.0, step=1.0, format="%.2f"
-    )
+    fuel_vol = input_field("Fuel Volume", "fuel_vol", 0.0, float(ac['max_fuel_volume']), 0.0, 'L' if units_wt=='kg' else 'gal')
     fuel_weight = fuel_vol * fuel_density
-    fuel_limit_by = "Manual entry"
-    fuel_note = ""
+    fuel_limit_by = "Manual Entry"
 
-# === Calculations ===
+# === CALCULATIONS ===
 m_empty = ew * ew_arm
 m_pilot = pilot * ac['pilot_arm']
 if isinstance(ac['baggage_arm'], list):
@@ -223,7 +224,7 @@ total_weight = ew + pilot + bag1 + bag2 + fuel_weight
 total_moment = m_empty + m_pilot + m_bag1 + m_bag2 + m_fuel
 cg = (total_moment / total_weight) if total_weight > 0 else 0
 
-# === Table with results (no limits column) ===
+# === MASS & BALANCE TABLE (NO LIMITS COL) ===
 st.markdown("### Mass & Balance Table")
 if isinstance(ac['baggage_arm'], list):
     table_cols = st.columns([2, 2, 2, 2, 2, 2])
@@ -238,7 +239,7 @@ if isinstance(ac['baggage_arm'], list):
         ("Baggage Area 2", bag2, ac['baggage_arm'][1], m_bag2),
         ("Fuel", fuel_weight, ac['fuel_arm'], m_fuel),
     ]
-    for i, (item, w, a, m) in enumerate(items):
+    for item, w, a, m in items:
         row = st.columns([2,2,2,2,2,2])
         row[0].write(item)
         row[1].write(f"{w:.2f}")
@@ -256,39 +257,66 @@ else:
         ("Baggage", bag1, ac['baggage_arm'], m_bag1),
         ("Fuel", fuel_weight, ac['fuel_arm'], m_fuel),
     ]
-    for i, (item, w, a, m) in enumerate(items):
+    for item, w, a, m in items:
         row = st.columns([2,2,2,2,2])
         row[0].write(item)
         row[1].write(f"{w:.2f}")
         row[2].write(f"{a:.3f}")
         row[3].write(f"{m:.2f}")
 
-# === Summary ===
+# === SUMMARY + NOTICES (HIGH VISIBILITY) ===
 cg_color = get_cg_color(cg, ac['cg_limits'])
-st.markdown("---")
-if fuel_mode == "Automatic maximum fuel (default)":
-    fuel_summary = f"Fuel possible: <span style='color:blue'>{fuel_vol:.1f} {'L' if units_wt=='kg' else 'gal'} / {fuel_weight:.1f} {units_wt}</span> <span style='font-size:95%'>({fuel_limit_by})</span>"
+alert_text = ""
+alert_color = None
+if total_weight > ac['max_takeoff_weight']:
+    alert_text += "TOTAL WEIGHT EXCEEDS MAXIMUM TAKEOFF WEIGHT!  "
+    alert_color = "red"
+if isinstance(ac['baggage_arm'], list):
+    if bag1 > ac['max_baggage_weight'][0]:
+        alert_text += "BAGGAGE AREA 1 EXCEEDS LIMIT!  "
+        alert_color = "red"
+    if bag2 > ac['max_baggage_weight'][1]:
+        alert_text += "BAGGAGE AREA 2 EXCEEDS LIMIT!  "
+        alert_color = "red"
 else:
-    fuel_summary = f"Fuel: <span style='color:blue'>{fuel_vol:.1f} {'L' if units_wt=='kg' else 'gal'} / {fuel_weight:.1f} {units_wt}</span>"
+    if bag1 > ac['max_baggage_weight']:
+        alert_text += "BAGGAGE EXCEEDS LIMIT!  "
+        alert_color = "red"
+if ac.get("max_passenger_weight") and pilot > ac["max_passenger_weight"]:
+    alert_text += "PILOT & PASSENGER EXCEED LIMIT!  "
+    alert_color = "red"
+if ac['cg_limits']:
+    mn, mx = ac['cg_limits']
+    if cg < mn or cg > mx:
+        alert_text += "CG OUTSIDE SAFE ENVELOPE!  "
+        alert_color = "red"
 
-st.markdown(
-    f"{fuel_summary}<br>"
-    f"<b>Total Weight:</b> <span style='color:{get_color(total_weight, ac['max_takeoff_weight'])}'>{total_weight:.2f} {units_wt}</span><br>"
+st.markdown("---")
+fuel_str = (
+    f"Fuel possible: {colorize(f'{fuel_vol:.1f} {'L' if units_wt=='kg' else 'gal'} / {fuel_weight:.1f} {units_wt}', 'blue', bold=True)} "
+    f"({fuel_limit_by})"
+    if fuel_mode == "Automatic maximum fuel (default)"
+    else f"Fuel: {colorize(f'{fuel_vol:.1f} {'L' if units_wt=='kg' else 'gal'} / {fuel_weight:.1f} {units_wt}', 'blue', bold=True)}"
+)
+summary_str = (
+    f"{fuel_str}<br>"
+    f"<b>Total Weight:</b> {colorize(f'{total_weight:.2f} {units_wt}', get_color(total_weight, ac['max_takeoff_weight']))}<br>"
     f"<b>Total Moment:</b> {total_moment:.2f} {units_wt}·{units_arm}<br>"
-    + (f"<b>CG:</b> <span style='color:{cg_color}'>{cg:.3f} {units_arm}</span><br>" if ac['cg_limits'] else "")
-    + (f"<b>CG Limits:</b> {ac['cg_limits'][0]:.3f} to {ac['cg_limits'][1]:.3f} {units_arm}" if ac['cg_limits'] else ""),
-    unsafe_allow_html=True
 )
 if ac['cg_limits']:
-    if cg_color == "red":
-        st.error("CG is OUTSIDE the safe envelope!")
-    elif cg_color == "orange":
-        st.warning("CG is close to the limit!")
-    else:
-        st.success("CG is WITHIN the safe envelope.")
+    summary_str += f"<b>CG:</b> {colorize(f'{cg:.3f} {units_arm}', cg_color)}<br>"
+    summary_str += f"<b>CG Limits:</b> {ac['cg_limits'][0]:.3f} to {ac['cg_limits'][1]:.3f} {units_arm}"
 
-# === PDF Export ===
-def generate_pdf(aircraft, registration, mission_number, flight_date, flight_time,
+st.markdown(summary_str, unsafe_allow_html=True)
+if alert_text:
+    st.markdown(f"<div style='background:#fff0f0;padding:18px;border-radius:12px;margin:18px 0'><span style='color:red;font-size:24px;font-weight:bold;'>⚠️ {alert_text}</span></div>", unsafe_allow_html=True)
+elif ac['cg_limits'] and cg_color == "orange":
+    st.markdown(f"<div style='background:#fffbe6;padding:18px;border-radius:12px;margin:18px 0'><span style='color:orange;font-size:18px;font-weight:bold;'>Warning: CG is close to the limit.</span></div>", unsafe_allow_html=True)
+elif ac['cg_limits'] and cg_color == "green":
+    st.markdown(f"<div style='background:#f0fff0;padding:18px;border-radius:12px;margin:18px 0'><span style='color:green;font-size:16px;font-weight:bold;'>CG is within the safe envelope.</span></div>", unsafe_allow_html=True)
+
+# === PDF Export (with UTC) ===
+def generate_pdf(aircraft, registration, mission_number, flight_date, flight_time_utc,
                  ew, ew_arm, pilot, bag1, bag2, fuel_weight, fuel_vol,
                  m_empty, m_pilot, m_bag1, m_bag2, m_fuel,
                  total_weight, total_moment, cg, ac, cg_color, fuel_mode, fuel_limit_by):
@@ -299,13 +327,12 @@ def generate_pdf(aircraft, registration, mission_number, flight_date, flight_tim
     pdf.set_font("Arial", '', 12)
     pdf.cell(0, 8, f"Aircraft: {aircraft} ({registration})", ln=True)
     pdf.cell(0, 8, f"Mission Number: {mission_number}", ln=True)
-    pdf.cell(0, 8, f"Date: {flight_date}   Time: {flight_time}", ln=True)
+    pdf.cell(0, 8, f"Scheduled UTC Date: {flight_date}   Time: {flight_time_utc} UTC", ln=True)
     pdf.cell(0, 8, "Operator: Sevenair Academy", ln=True)
     pdf.ln(4)
     pdf.set_font("Arial", 'B', 12)
 
     if isinstance(ac['baggage_arm'], list):
-        # Cessna 150/152
         pdf.cell(38, 8, "Item", 1, 0)
         pdf.cell(32, 8, f"Weight ({ac['units']['weight']})", 1, 0)
         pdf.cell(28, 8, f"Arm ({ac['units']['arm']})", 1, 0)
@@ -332,7 +359,6 @@ def generate_pdf(aircraft, registration, mission_number, flight_date, flight_tim
         pdf.cell(28, 8, f"{ac['fuel_arm']:.3f}", 1, 0, 'C')
         pdf.cell(40, 8, f"{m_fuel:.2f}", 1, 1, 'C')
     else:
-        # Tecnam P2008
         pdf.cell(38, 8, "Item", 1, 0)
         pdf.cell(32, 8, f"Weight ({ac['units']['weight']})", 1, 0)
         pdf.cell(28, 8, f"Arm ({ac['units']['arm']})", 1, 0)
@@ -371,11 +397,16 @@ def generate_pdf(aircraft, registration, mission_number, flight_date, flight_tim
         pdf.set_text_color(0,0,0)
         pdf.cell(0, 8, f"CG Limits: {ac['cg_limits'][0]:.3f} to {ac['cg_limits'][1]:.3f} {ac['units']['arm']}", ln=True)
         if cg_color == "red":
-            pdf.cell(0, 8, "CG is OUTSIDE the safe envelope!", ln=True)
+            pdf.cell(0, 8, "CG OUTSIDE SAFE ENVELOPE!", ln=True)
         elif cg_color == "orange":
-            pdf.cell(0, 8, "CG is close to the limit!", ln=True)
+            pdf.cell(0, 8, "CG CLOSE TO LIMIT.", ln=True)
         else:
-            pdf.cell(0, 8, "CG is WITHIN the safe envelope.", ln=True)
+            pdf.cell(0, 8, "CG WITHIN SAFE ENVELOPE.", ln=True)
+    if alert_text:
+        pdf.set_text_color(200,0,0)
+        pdf.set_font("Arial", 'B', 13)
+        pdf.cell(0, 12, f"WARNING: {alert_text}", ln=True)
+        pdf.set_text_color(0,0,0)
     pdf.ln(2)
     pdf.set_font("Arial", 'I', 9)
     pdf.cell(0, 7, "Auto-generated by Mass & Balance Planner (Streamlit)", ln=True)
@@ -385,9 +416,11 @@ def generate_pdf(aircraft, registration, mission_number, flight_date, flight_tim
 with st.expander("Generate PDF report"):
     registration = st.text_input("Aircraft registration", value="CS-XXX")
     mission_number = st.text_input("Mission number", value="001")
-    now = datetime.datetime.now()
-    flight_date = st.text_input("Flight date", value=now.strftime("%d/%m/%Y"))
-    flight_time = st.text_input("Flight time", value=now.strftime("%H:%M"))
+    utc_today = utc_now()
+    default_date = utc_today.strftime("%d/%m/%Y")
+    default_time = utc_today.strftime("%H:%M")
+    flight_date = st.text_input("Scheduled flight date (UTC)", value=default_date)
+    flight_time = st.text_input("Scheduled flight time (UTC)", value=default_time)
     if st.button("Generate PDF with current values"):
         pdf = generate_pdf(
             aircraft, registration, mission_number, flight_date, flight_time,
@@ -399,5 +432,3 @@ with st.expander("Generate PDF report"):
         with open(pdf_file, "rb") as f:
             st.download_button("Download PDF", f, file_name=pdf_file, mime="application/pdf")
         st.success("PDF generated successfully!")
-
-
