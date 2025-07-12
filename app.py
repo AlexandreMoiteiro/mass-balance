@@ -400,3 +400,4 @@ with st.expander("Generate PDF report"):
             st.download_button("Download PDF", f, file_name=pdf_file, mime="application/pdf")
         st.success("PDF generated successfully!")
 
+
