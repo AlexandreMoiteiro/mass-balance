@@ -1,12 +1,13 @@
 import streamlit as st
-import pandas as pd
 from fpdf import FPDF
 import datetime
 from pathlib import Path
 import pytz
+from io import BytesIO
 
-# ===== DATA =====
-aircraft_data = {
+# ============ DATA DEFINITIONS ============
+
+AIRCRAFT_DATA = {
     "Tecnam P2008": {
         "fuel_arm": 2.209,
         "pilot_arm": 1.800,
@@ -44,16 +45,19 @@ aircraft_data = {
         "units": {"weight": "lb", "arm": "in"}
     }
 }
-icons = {
+
+ICONS = {
     "Tecnam P2008": "tecnam_icon.png",
     "Cessna 150": "cessna_icon.png",
     "Cessna 152": "cessna_icon.png"
 }
-afm_files = {
+AFM_FILES = {
     "Tecnam P2008": "Tecnam_P2008_AFM.pdf",
     "Cessna 150": "Cessna_150_AFM.pdf",
     "Cessna 152": "Cessna_152_AFM.pdf"
 }
+
+# ============ UTILS ============
 
 def get_limits_text(ac):
     units = ac["units"]["weight"]
@@ -73,6 +77,11 @@ def get_limits_text(ac):
     if ac.get("cg_limits"):
         lines.append(f"CG Limits: {ac['cg_limits'][0]} to {ac['cg_limits'][1]} {arm_unit}")
     return "\n".join(lines)
+
+def colorize(text, color, bold=True):
+    style = f"color:{color};"
+    if bold: style += "font-weight:bold;"
+    return f"<span style='{style}'>{text}</span>"
 
 def get_color(val, limit):
     if limit is None: return "black"
@@ -94,127 +103,71 @@ def get_cg_color(cg, limits):
     else:
         return "green"
 
-def colorize(text, color, bold=True):
-    style = f"color:{color};"
-    if bold:
-        style += "font-weight:bold;"
-    return f"<span style='{style}'>{text}</span>"
-
 def utc_now():
     return datetime.datetime.now(pytz.UTC)
 
-# ====== Custom CSS ======
-st.markdown("""
-<style>
-body {background: #f2f7fa;}
-.header-main {
-    background: linear-gradient(90deg, #0f2642 60%, #196ab3 100%);
-    color: white;
-    padding: 1.5em 0 0.7em 0;
-    text-align: center;
-    font-size: 2.2em;
-    font-weight: bold;
-    letter-spacing: 2px;
-    border-radius: 0 0 16px 16px;
-    box-shadow: 0 2px 18px #1251a430;
-    margin-bottom: 12px;
-}
-.summary-card {
-    background: #e7f1fa;
-    border-radius: 10px;
-    padding: 1.2em 1.3em 0.2em 1.3em;
-    margin-bottom: 1.3em;
-    box-shadow: 0 1px 8px #b2c7df45;
-}
-.cockpit-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 10px;
-    margin-bottom: 14px;
-    font-family: Arial, "Segoe UI", Helvetica, sans-serif;
-}
-.cockpit-table th, .cockpit-table td {
-    border: 1px solid #bbb;
-    padding: 9px 0 9px 0;
-    text-align: center;
-    font-size: 16px;
-}
-.cockpit-table th {
-    background: #ebf1fb;
-    font-weight: bold;
-}
-.cockpit-table td:first-child, .cockpit-table th:first-child {
-    text-align: left;
-    padding-left: 14px;
-}
-.cockpit-alert {
-    color:#b30000;
-    font-size:16px;
-    font-weight:bold;
-    margin-bottom:7px;
-    letter-spacing: 1px;
-}
-</style>
-<div class="header-main">
-    ✈️ Mass & Balance Cockpit Planner
-</div>
-""", unsafe_allow_html=True)
-
-# ====== SIDEBAR ======
-with st.sidebar:
-    st.header("Aircraft Profile")
-    aircraft = st.selectbox("Select Aircraft", list(aircraft_data.keys()))
-    ac = aircraft_data[aircraft]
-    icon_path = icons.get(aircraft)
-    if icon_path and Path(icon_path).exists():
-        st.image(icon_path, width=230)
-    st.write("### Operational Limits")
-    st.markdown(f"<div style='color:#003566;font-size:15px'>{get_limits_text(ac)}</div>", unsafe_allow_html=True)
-    afm_path = afm_files.get(aircraft)
-    if afm_path and Path(afm_path).exists():
-        with open(afm_path, "rb") as f:
-            st.download_button("📕 Download AFM", f, file_name=afm_path, mime="application/pdf")
-
-# ====== MAIN PANEL ======
-st.write("### Aircraft Loading")
-
-fuel_mode = st.radio(
-    "Fuel Input Mode",
-    ["Automatic maximum fuel (default)", "Manual fuel volume"],
-    horizontal=True,
-    index=0,
-    help="Choose 'Manual' to specify fuel quantity, otherwise the app will auto-calculate max safe fuel load."
-)
-
-def input_field(label, key, val, units, help_text=""):
+def input_field(label, key, val, units):
     return st.number_input(
         f"{label} ({units})",
         value=val,
         step=1.0,
         format="%.2f",
-        key=key,
-        help=help_text
+        key=key
     )
 
-# Input fields - use columns for a modern, cockpit-style grid
-input_cols = st.columns(3)
+# ============ SIDEBAR ============
+
+with st.sidebar:
+    st.title("Aircraft Selection")
+    aircraft = st.selectbox("Select Aircraft", list(AIRCRAFT_DATA.keys()))
+    ac = AIRCRAFT_DATA[aircraft]
+
+    # Aircraft icon
+    icon_path = ICONS.get(aircraft)
+    if icon_path and Path(icon_path).exists():
+        st.image(icon_path, width=200)
+
+    st.subheader("Operational Limits")
+    st.code(get_limits_text(ac), language='text')
+
+    # Download AFM
+    afm_path = AFM_FILES.get(aircraft)
+    if afm_path and Path(afm_path).exists():
+        with open(afm_path, "rb") as f:
+            st.download_button("Download Aircraft Flight Manual (AFM)", f, file_name=afm_path, mime="application/pdf")
+
+# ============ TOP HEADER ============
+
+st.markdown(f"<h1 style='text-align:center'>{aircraft}</h1>", unsafe_allow_html=True)
+
+fuel_mode = st.radio(
+    "Fuel input mode",
+    ["Automatic maximum fuel (default)", "Manual fuel volume"],
+    horizontal=True,
+    index=0
+)
+
+# ============ INPUTS ============
+
+# Main inputs for mass/balance
 if isinstance(ac['baggage_arm'], list):
-    ew        = input_cols[0].number_input("Empty Weight",  value=0.0, step=1.0, format="%.2f", key="ew")
-    ew_arm    = input_cols[1].number_input("Empty Weight Arm", value=0.0, step=0.01, format="%.3f", key="ew_arm")
-    pilot     = input_cols[2].number_input("Pilot & Passenger", value=0.0, step=1.0, format="%.2f", key="pilot")
-    bag1      = st.number_input("Baggage Area 1", value=0.0, step=1.0, format="%.2f", key="bag1")
-    bag2      = st.number_input("Baggage Area 2", value=0.0, step=1.0, format="%.2f", key="bag2")
+    ew        = input_field("Empty Weight",      "ew",     0.0, ac['units']['weight'])
+    ew_arm    = input_field("Empty Weight Arm",  "ew_arm", 0.0, ac['units']['arm'])
+    pilot     = input_field("Pilot & Passenger", "pilot",  0.0, ac['units']['weight'])
+    bag1      = input_field("Baggage Area 1",    "bag1",   0.0, ac['units']['weight'])
+    bag2      = input_field("Baggage Area 2",    "bag2",   0.0, ac['units']['weight'])
 else:
-    ew        = input_cols[0].number_input("Empty Weight",  value=0.0, step=1.0, format="%.2f", key="ew")
-    ew_arm    = input_cols[1].number_input("Empty Weight Arm", value=0.0, step=0.01, format="%.3f", key="ew_arm")
-    pilot     = input_cols[2].number_input("Pilot & Passenger", value=0.0, step=1.0, format="%.2f", key="pilot")
-    bag1      = st.number_input("Baggage", value=0.0, step=1.0, format="%.2f", key="bag1")
+    ew        = input_field("Empty Weight",      "ew",     0.0, ac['units']['weight'])
+    ew_arm    = input_field("Empty Weight Arm",  "ew_arm", 0.0, ac['units']['arm'])
+    pilot     = input_field("Pilot & Passenger", "pilot",  0.0, ac['units']['weight'])
+    bag1      = input_field("Baggage",           "bag1",   0.0, ac['units']['weight'])
     bag2      = 0.0
 
 fuel_density = ac['fuel_density']
 units_wt = ac['units']['weight']
 units_arm = ac['units']['arm']
 
+# Fuel Calculation
 if fuel_mode == "Automatic maximum fuel (default)":
     useful_load = ac['max_takeoff_weight'] - (ew + pilot + bag1 + bag2)
     fuel_weight_possible = max(0.0, useful_load)
@@ -228,10 +181,11 @@ if fuel_mode == "Automatic maximum fuel (default)":
         fuel_vol = ac['max_fuel_volume']
         fuel_limit_by = "Tank Capacity"
 else:
-    fuel_vol = st.number_input("Fuel Volume", value=0.0, step=1.0, format="%.2f", key="fuel_vol")
+    fuel_vol = st.number_input("Fuel Volume", value=0.0, step=1.0, format="%.2f")
     fuel_weight = fuel_vol * fuel_density
     fuel_limit_by = "Manual Entry"
 
+# Moments
 m_empty = ew * ew_arm
 m_pilot = pilot * ac['pilot_arm']
 if isinstance(ac['baggage_arm'], list):
@@ -247,7 +201,8 @@ total_moment = m_empty + m_pilot + m_bag1 + m_bag2 + m_fuel
 cg = (total_moment / total_weight) if total_weight > 0 else 0
 baggage_sum = bag1 + bag2
 
-# ====== ALERTS ======
+# ============ ALERTS ============
+
 alert_list = []
 if total_weight > ac['max_takeoff_weight']:
     alert_list.append("Total weight exceeds maximum takeoff weight!")
@@ -268,33 +223,36 @@ if ac['cg_limits']:
     if cg < mn or cg > mx:
         alert_list.append("CG outside safe envelope!")
 
-# ====== SUMMARY CARDS ======
-st.markdown('<div class="summary-card">', unsafe_allow_html=True)
-sc1, sc2, sc3, sc4 = st.columns([1,1,1,1.2])
-sc1.metric("Total Weight", f"{total_weight:.1f} {units_wt}", 
-    delta=f"Max {ac['max_takeoff_weight']} {units_wt}", 
-    delta_color="inverse" if total_weight > ac['max_takeoff_weight'] else "off")
-sc2.metric("CG", f"{cg:.3f} {units_arm}", 
-    delta=f"{ac['cg_limits'][0]}–{ac['cg_limits'][1]} {units_arm}" if ac['cg_limits'] else "N/A",
-    delta_color="inverse" if ac['cg_limits'] and (cg < ac['cg_limits'][0] or cg > ac['cg_limits'][1]) else "off")
-sc3.metric("Fuel", f"{fuel_vol:.1f} {'L' if units_wt=='kg' else 'gal'}",
-    delta=f"{fuel_weight:.1f} {units_wt}",
-    help="Current fuel load (volume and weight)")
-sc4.metric("Baggage", f"{baggage_sum:.1f} {units_wt}", 
-    delta=f"Max {ac['max_baggage_weight']}" if isinstance(ac['max_baggage_weight'], (int, float)) else f"Areas 1/2: {ac['max_baggage_weight']}", 
-    help="Sum of all baggage areas")
-st.markdown('</div>', unsafe_allow_html=True)
+# ============ MASS & BALANCE TABLE ============
 
-# Show alerts
-if alert_list:
-    for a in alert_list:
-        st.markdown(f"<div class='cockpit-alert'>⚠️ {a}</div>", unsafe_allow_html=True)
-else:
-    st.success("✅ All values within limits. Ready for flight.")
+st.markdown("### Mass & Balance Table")
 
-# ====== MASS & BALANCE TABLE ======
-st.write("### Mass & Balance Table")
 def cockpit_table_html(items, units_wt, units_arm):
+    css = """
+    <style>
+    .cockpit-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+        margin-bottom: 14px;
+        font-family: Arial, "Segoe UI", Helvetica, sans-serif;
+    }
+    .cockpit-table th, .cockpit-table td {
+        border: 1px solid #bbb;
+        padding: 9px 0 9px 0;
+        text-align: center;
+        font-size: 16px;
+    }
+    .cockpit-table th {
+        background: #f5f5f5;
+        font-weight: bold;
+    }
+    .cockpit-table td:first-child, .cockpit-table th:first-child {
+        text-align: left;
+        padding-left: 14px;
+    }
+    </style>
+    """
     table = '<table class="cockpit-table">'
     table += (
         "<tr>"
@@ -307,7 +265,7 @@ def cockpit_table_html(items, units_wt, units_arm):
     for i in items:
         table += f"<tr><td>{i[0]}</td><td>{i[1]:.2f}</td><td>{i[2]:.3f}</td><td>{i[3]:.2f}</td></tr>"
     table += "</table>"
-    return table
+    return css + table
 
 if isinstance(ac['baggage_arm'], list):
     items = [
@@ -327,7 +285,29 @@ else:
 
 st.markdown(cockpit_table_html(items, units_wt, units_arm), unsafe_allow_html=True)
 
-# ====== PDF COCKPIT (unchanged from your logic) ======
+# ============ SUMMARY & ALERTS ============
+
+fuel_str = (
+    f"Fuel possible: {colorize(f'{fuel_vol:.1f} {'L' if units_wt=='kg' else 'gal'} / {fuel_weight:.1f} {units_wt}', 'blue', bold=True)} "
+    f"({'Limited by tank capacity' if fuel_limit_by == 'Tank Capacity' else 'Limited by maximum weight'})"
+    if fuel_mode == "Automatic maximum fuel (default)"
+    else f"Fuel: {colorize(f'{fuel_vol:.1f} {'L' if units_wt=='kg' else 'gal'} / {fuel_weight:.1f} {units_wt}', 'blue', bold=True)}"
+)
+summary_str = (
+    f"{fuel_str}<br>"
+    f"<b>Total Weight:</b> {colorize(f'{total_weight:.2f}', get_color(total_weight, ac['max_takeoff_weight']))} {units_wt}<br>"
+    f"<b>Total Moment:</b> {total_moment:.2f} {units_wt}·{units_arm}<br>"
+)
+if ac['cg_limits']:
+    summary_str += f"<b>CG:</b> {colorize(f'{cg:.3f}', get_cg_color(cg, ac['cg_limits']))} {units_arm}<br>"
+    summary_str += f"<b>CG Limits:</b> {ac['cg_limits'][0]:.3f} to {ac['cg_limits'][1]:.3f} {units_arm}"
+st.markdown(summary_str, unsafe_allow_html=True)
+if alert_list:
+    for a in alert_list:
+        st.markdown(f"<div style='color:#b30000;font-size:16px;font-weight:bold;margin-bottom:7px'>{a}</div>", unsafe_allow_html=True)
+
+# ============ PDF GENERATION ============
+
 def generate_pdf(aircraft, registration, mission_number, flight_datetime_utc,
                  ew, ew_arm, pilot, bag1, bag2, fuel_weight, fuel_vol,
                  m_empty, m_pilot, m_bag1, m_bag2, m_fuel,
@@ -351,7 +331,7 @@ def generate_pdf(aircraft, registration, mission_number, flight_datetime_utc,
         pdf.cell(0, 6, line, ln=True)
     pdf.ln(5)
     pdf.set_font("Arial", 'B', 12)
-    # TABELA
+    # Table
     col_widths = [46, 36, 34, 56]
     headers = ["Item", f"Weight ({ac['units']['weight']})", f"Arm ({ac['units']['arm']})", f"Moment ({ac['units']['weight']}·{ac['units']['arm']})"]
     for h, w in zip(headers, col_widths):
@@ -380,11 +360,10 @@ def generate_pdf(aircraft, registration, mission_number, flight_datetime_utc,
         pdf.cell(col_widths[3], 8, f"{row[3]:.2f}", border=1, align='C')
         pdf.ln()
     pdf.ln(2)
-    # RESUMO
+    # Summary
     pdf.set_font("Arial", 'B', 12)
     color_tw = get_color(total_weight, ac['max_takeoff_weight'])
     cg_col = get_cg_color(cg, ac['cg_limits']) if ac['cg_limits'] else "black"
-    # Fuel
     fuel_str = f"Fuel: {fuel_vol:.1f} {'L' if ac['units']['weight']=='kg' else 'gal'} / {fuel_weight:.1f} {ac['units']['weight']} ({'Limited by tank capacity' if fuel_limit_by == 'Tank Capacity' else 'Limited by maximum weight'})"
     pdf.set_text_color(0,140,0)
     pdf.cell(0, 8, fuel_str, ln=True)
@@ -408,7 +387,7 @@ def generate_pdf(aircraft, registration, mission_number, flight_datetime_utc,
         pdf.cell(0, 8, f"CG: {cg:.3f} {ac['units']['arm']}", ln=True)
         pdf.set_text_color(0,0,0)
     pdf.ln(2)
-    # ALERTAS finais (proporcionais)
+    # Alerts
     if alert_list:
         pdf.set_font("Arial", 'B', 11)
         pdf.set_text_color(200,0,0)
@@ -418,25 +397,27 @@ def generate_pdf(aircraft, registration, mission_number, flight_datetime_utc,
     pdf.ln(4)
     pdf.set_font("Arial", 'I', 9)
     pdf.cell(0, 8, "Auto-generated by Mass & Balance Planner (Streamlit)", ln=True)
-    return pdf
+    # Return in-memory PDF
+    pdf_stream = BytesIO()
+    pdf.output(pdf_stream)
+    pdf_stream.seek(0)
+    return pdf_stream
 
-# ====== PDF EXPORT ======
-with st.expander("📝 Generate PDF report"):
+# ============ PDF EXPORT ============
+
+with st.expander("Generate PDF report"):
     registration = st.text_input("Aircraft registration", value="CS-XXX")
     mission_number = st.text_input("Mission number", value="001")
     utc_today = utc_now()
     default_datetime = utc_today.strftime("%Y-%m-%d %H:%M UTC")
     flight_datetime_utc = st.text_input("Scheduled flight date and time (UTC)", value=default_datetime)
     if st.button("Generate PDF with current values"):
-        pdf = generate_pdf(
+        pdf_stream = generate_pdf(
             aircraft, registration, mission_number, flight_datetime_utc,
             ew, ew_arm, pilot, bag1, bag2, fuel_weight, fuel_vol,
             m_empty, m_pilot, m_bag1, m_bag2, m_fuel, total_weight, total_moment, cg, ac, fuel_limit_by, alert_list, baggage_sum
         )
         pdf_file = f"MB_mission{mission_number}.pdf"
-        pdf.output(pdf_file)
-        with open(pdf_file, "rb") as f:
-            st.download_button("⬇️ Download PDF", f, file_name=pdf_file, mime="application/pdf")
+        st.download_button("Download PDF", pdf_stream, file_name=pdf_file, mime="application/pdf")
         st.success("PDF generated successfully!")
 
-# ========== END ==========
