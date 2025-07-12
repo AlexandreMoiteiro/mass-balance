@@ -211,7 +211,7 @@ if ac['cg_limits']:
 st.markdown("### Mass & Balance Table")
 
 def cockpit_table_html(items, units_wt, units_arm):
-    # CSS para cockpit, full-width, colunas fixas e texto alinhado
+    # Cockpit CSS para full-width e fonte moderna/legível
     css = """
     <style>
     .cockpit-table {
@@ -219,26 +219,33 @@ def cockpit_table_html(items, units_wt, units_arm):
         border-collapse: collapse;
         margin-top: 10px;
         margin-bottom: 14px;
+        font-family: Arial, "Segoe UI", Helvetica, sans-serif;
     }
     .cockpit-table th, .cockpit-table td {
         border: 1px solid #bbb;
-        padding: 7px 0 7px 0;
+        padding: 9px 0 9px 0;
         text-align: center;
-        font-family: monospace;
         font-size: 16px;
     }
     .cockpit-table th {
-        background: #eee;
+        background: #f5f5f5;
         font-weight: bold;
     }
     .cockpit-table td:first-child, .cockpit-table th:first-child {
         text-align: left;
-        padding-left: 10px;
+        padding-left: 14px;
     }
     </style>
     """
     table = '<table class="cockpit-table">'
-    table += f"<tr><th>Item</th><th>Weight ({units_wt})</th><th>Arm ({units_arm})</th><th>Moment ({units_wt}·{units_arm})</th></tr>"
+    table += (
+        "<tr>"
+        "<th>Item</th>"
+        f"<th>Weight ({units_wt})</th>"
+        f"<th>Arm Position ({units_arm})</th>"
+        f"<th>Moment ({units_wt}·{units_arm})</th>"
+        "</tr>"
+    )
     for i in items:
         table += f"<tr><td>{i[0]}</td><td>{i[1]:.2f}</td><td>{i[2]:.3f}</td><td>{i[3]:.2f}</td></tr>"
     table += "</table>"
