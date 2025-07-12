@@ -37,19 +37,22 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- EASA PRO CSS ---
+# --- EASA PRO CSS (light mode enforced) ---
 def inject_css():
     st.markdown("""
     <style>
-    html, body, [class*="css"] {
-        font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
-        background: #f6f7fa;
-        color: #181c22;
-        font-size: 15px;
-        line-height: 1.58;
+    html, body, [class*="css"], .main {
+        background: #f6f7fa !important;
+        color: #181c22 !important;
+    }
+    @media (prefers-color-scheme: dark) {
+        html, body, [class*="css"], .main {
+            background: #f6f7fa !important;
+            color: #181c22 !important;
+        }
     }
     .block-container { max-width: 1120px !important; margin: auto; padding-top:16px;}
-    .main { background: #f6f7fa; }
+    .main { background: #f6f7fa !important; }
     .easa-header {
         font-size: 1.27rem;
         font-weight: 800;
@@ -59,6 +62,20 @@ def inject_css():
         margin-bottom: 0;
         padding-bottom: 7px;
         text-transform: uppercase;
+    }
+    .easa-aircraft-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-top: 6px;
+        margin-bottom: 8px;
+    }
+    .easa-aircraft-icon {
+        width: 46px; height: 46px; border-radius: 0; object-fit: contain; background: #f0f1f5; border:1px solid #e5e7ec;
+    }
+    .easa-aircraft-name {
+        font-size:1.18rem;font-weight:700;color:#1b2541;
+        letter-spacing:0.01em;
     }
     .easa-limits {
         font-size: 0.97rem;
@@ -77,6 +94,7 @@ def inject_css():
         border-right: 1.5px solid #e5e7ec;
         padding: 26px 32px 18px 16px;
         height: 100%;
+        box-shadow: none;
     }
     .easa-section {
         background: #fff;
@@ -84,6 +102,7 @@ def inject_css():
         padding: 28px 32px 18px 32px;
         margin-bottom: 23px;
         border: 1px solid #e5e7ec;
+        box-shadow: none;
     }
     .easa-table {
         border-collapse: collapse;
@@ -117,6 +136,7 @@ def inject_css():
     .stDownloadButton {margin-top:11px;}
     .easa-contact-panel {margin:44px auto 0 auto; max-width:370px; background:#f8fafd;padding:18px 20px 6px 20px; border:1px solid #e5e7ec;}
     .footer {margin-top:46px;font-size:0.96rem;color:#a0a8b6;text-align:center;}
+    .fuel-mode-desc {font-size:0.95rem;color:#888;margin-bottom:13px;margin-top:-6px;}
     .stButton>button {width:100%;}
     .st-expander {border-radius:0;}
     </style>
@@ -126,6 +146,7 @@ inject_css()
 # ---- Data and logic ----
 aircraft_data = {
     "Tecnam P2008": {
+        "icon": "tecnam_icon.png",  # Path or URL; fallback provided below
         "fuel_arm": 2.209,
         "pilot_arm": 1.800,
         "baggage_arm": 2.417,
@@ -141,6 +162,7 @@ aircraft_data = {
 afm_files = {
     "Tecnam P2008": "Tecnam_P2008_AFM.pdf"
 }
+
 def get_limits_text(ac):
     units = ac["units"]["weight"]
     arm_unit = ac["units"]["arm"]
@@ -151,6 +173,7 @@ def get_limits_text(ac):
         f"Max Baggage: {ac['max_baggage_weight']} {units}",
         f"CG Limits: {ac['cg_limits'][0]} to {ac['cg_limits'][1]} {arm_unit}",
     ]
+
 def get_color(val, limit):
     if limit is None: return "ok"
     if val > limit:
@@ -159,6 +182,7 @@ def get_color(val, limit):
         return "warn"
     else:
         return "ok"
+
 def get_cg_color(cg, limits):
     if not limits: return "ok"
     mn, mx = limits
@@ -169,6 +193,7 @@ def get_cg_color(cg, limits):
         return "warn"
     else:
         return "ok"
+
 def utc_now():
     return datetime.datetime.now(pytz.UTC)
 
@@ -177,13 +202,36 @@ st.markdown(f'<div class="easa-header">Mass & Balance Calculation Tool</div>', u
 
 cols = st.columns([0.48, 0.02, 0.5], gap="large")
 
+# ------ INPUT PANEL (LEFT) ------
 with cols[0]:
     st.markdown('<div class="easa-input-panel">', unsafe_allow_html=True)
     st.markdown("### Aircraft Selection")
-    aircrafts = list(aircraft_data.keys())
-    aircraft = st.selectbox("Aircraft type", aircrafts, index=0)
-    ac = aircraft_data[aircraft]
-    afm_path = afm_files.get(aircraft)
+    aircrafts = list(aircraft_data.keys()) + ["More aircraft coming soon..."]
+    select_disabled = len(aircraft_data) == 1
+    selected_aircraft = st.selectbox("Aircraft type", aircrafts, index=0, disabled=select_disabled)
+    if selected_aircraft not in aircraft_data:
+        st.info("More aircraft will be available soon.")
+        st.stop()
+    ac = aircraft_data[selected_aircraft]
+    icon_path = ac.get("icon", "")
+    icon_exists = False
+    if Path(icon_path).exists():
+        icon_exists = True
+        with open(icon_path, "rb") as f:
+            img_data = f.read()
+    else:
+        # fallback SVG inline for professional look
+        img_data = None
+        icon_url = "https://cdn-icons-png.flaticon.com/512/2857/2857447.png"
+
+    st.markdown(
+        f'<div class="easa-aircraft-row">'
+        f'{f"<img class=\'easa-aircraft-icon\' src=\'data:image/png;base64,{base64.b64encode(img_data).decode()}\' />" if icon_exists else f"<img class=\'easa-aircraft-icon\' src=\'{icon_url}\' />"}'
+        f'<span class="easa-aircraft-name">{selected_aircraft}</span>'
+        f'</div>',
+        unsafe_allow_html=True
+    )
+    afm_path = afm_files.get(selected_aircraft)
     if afm_path and Path(afm_path).exists():
         with open(afm_path, "rb") as f:
             st.download_button("AFM Document", f, file_name=afm_path, mime="application/pdf")
@@ -198,11 +246,15 @@ with cols[0]:
         bag2 = 0.0
         fuel_mode = st.radio(
             "Fuel Input Mode",
-            ["Auto max fuel", "Manual fuel"],
+            ["Automatic maximum fuel (default)", "Manual fuel volume"],
             index=0, key="fuel_mode",
         )
+        st.markdown(
+            '<div class="fuel-mode-desc">Automatic maximum fuel (default): Fuel will be maximized as per limitations. Manual: Specify exact fuel volume.</div>',
+            unsafe_allow_html=True
+        )
         fuel_density = ac['fuel_density']
-        if fuel_mode == "Manual fuel":
+        if fuel_mode == "Manual fuel volume":
             fuel_vol = st.number_input("Fuel Volume (L)", min_value=0.0, value=0.0, step=1.0, key="fuel_vol")
             fuel_weight = fuel_vol * fuel_density
         st.form_submit_button("Update")
@@ -212,20 +264,20 @@ fuel_density = ac['fuel_density']
 units_wt = ac['units']['weight']
 units_arm = ac['units']['arm']
 
-if fuel_mode == "Auto max fuel":
+if fuel_mode == "Automatic maximum fuel (default)":
     useful_load = ac['max_takeoff_weight'] - (ew + pilot + bag1 + bag2)
     fuel_weight_possible = max(0.0, useful_load)
     tank_capacity_weight = ac['max_fuel_volume'] * fuel_density
     if fuel_weight_possible <= tank_capacity_weight:
         fuel_weight = fuel_weight_possible
         fuel_vol = fuel_weight / fuel_density
-        fuel_limit_by = "Maximum Weight"
+        fuel_limit_by = "maximum weight"
     else:
         fuel_weight = tank_capacity_weight
         fuel_vol = ac['max_fuel_volume']
-        fuel_limit_by = "Tank Capacity"
+        fuel_limit_by = "tank capacity"
 else:
-    fuel_limit_by = "Manual Entry"
+    fuel_limit_by = "manual entry"
 
 m_empty = ew_moment
 m_pilot = pilot * ac['pilot_arm']
@@ -249,14 +301,18 @@ if ac['cg_limits']:
     if cg < mn or cg > mx:
         alert_list.append("CG outside safe envelope.")
 
+# ------ RESULT PANEL (RIGHT) ------
 with cols[2]:
     st.markdown('<div class="easa-section">', unsafe_allow_html=True)
     st.markdown('<div class="section-title">Calculation Summary</div>', unsafe_allow_html=True)
     st.markdown('<div class="easa-summary">', unsafe_allow_html=True)
-    if fuel_mode == "Auto max fuel":
-        st.markdown(f'<div class="easa-summary-row"><div class="easa-summary-label">Fuel possible</div><div class="easa-summary-val ok">{fuel_vol:.1f} L / {fuel_weight:.1f} {units_wt} <span style="color:#8c8c8c;font-size:0.97em;">[{fuel_limit_by}]</span></div></div>', unsafe_allow_html=True)
+    if fuel_mode == "Automatic maximum fuel (default)":
+        st.markdown(
+            f'<div class="easa-summary-row"><div class="easa-summary-label">Fuel possible</div>'
+            f'<div class="easa-summary-val ok">{fuel_vol:.1f} L / {fuel_weight:.1f} {units_wt} <span style="color:#888;font-size:0.97em;">[limited by {fuel_limit_by}]</span></div></div>',
+            unsafe_allow_html=True)
     else:
-        st.markdown(f'<div class="easa-summary-row"><div class="easa-summary-label">Fuel</div><div class="easa-summary-val ok">{fuel_vol:.1f} L / {fuel_weight:.1f} {units_wt}</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="easa-summary-row"><div class="easa-summary-label">Fuel</div><div class="easa-summary-val ok">{fuel_vol:.1f} L / {fuel_weight:.1f} {units_wt} <span style="color:#888;font-size:0.97em;">[manual entry]</span></div></div>', unsafe_allow_html=True)
     st.markdown(f'<div class="easa-summary-row"><div class="easa-summary-label">Total Weight</div><div class="easa-summary-val {get_color(total_weight, ac["max_takeoff_weight"])}">{total_weight:.2f} {units_wt}</div></div>', unsafe_allow_html=True)
     st.markdown(f'<div class="easa-summary-row"><div class="easa-summary-label">Total Moment</div><div class="easa-summary-val">{total_moment:.2f} {units_wt}·{units_arm}</div></div>', unsafe_allow_html=True)
     if ac['cg_limits']:
@@ -306,13 +362,6 @@ with cols[2]:
         pdf_button = st.button("Generate PDF with current values", disabled=not pilot_name_valid)
         if pdf_button and pilot_name_valid:
             pdf = CustomPDF()
-            pdf = CustomPDF()
-            pdf = CustomPDF()
-            pdf = CustomPDF()
-            pdf = CustomPDF()
-            pdf = CustomPDF()
-            pdf = CustomPDF()
-            pdf = CustomPDF()
             pdf.set_auto_page_break(auto=True, margin=10)
             pdf.add_page()
             pdf.set_fill_color(34,34,34)
@@ -325,7 +374,7 @@ with cols[2]:
             pdf.set_xy(10,20)
             pdf.ln(3)
             pdf.set_font("Arial", 'B', 12)
-            pdf.cell(0, 7, ascii_safe(f"{aircraft}  |  {registration}"), ln=True)
+            pdf.cell(0, 7, ascii_safe(f"{selected_aircraft}  |  {registration}"), ln=True)
             pdf.set_font("Arial", '', 11)
             pdf.cell(0, 6, ascii_safe(f"Mission Number: {mission_number}"), ln=True)
             pdf.cell(0, 6, ascii_safe(f"Flight (UTC): {flight_datetime_utc}"), ln=True)
@@ -361,7 +410,7 @@ with cols[2]:
             pdf.ln(1)
             pdf.set_font("Arial", 'B', 10)
             pdf.set_text_color(50,50,50)
-            fuel_str = f"Fuel: {fuel_vol:.1f} L / {fuel_weight:.1f} {ac['units']['weight']} ({'Limited by tank capacity' if fuel_limit_by == 'Tank Capacity' else 'Limited by maximum weight'})"
+            fuel_str = f"Fuel: {fuel_vol:.1f} L / {fuel_weight:.1f} {ac['units']['weight']} (limited by {fuel_limit_by})"
             pdf.cell(0, 6, ascii_safe(fuel_str), ln=True)
             pdf.set_text_color(0,0,0)
             pdf.cell(0, 6, ascii_safe(f"Total Weight: {total_weight:.2f} {ac['units']['weight']}"), ln=True)
