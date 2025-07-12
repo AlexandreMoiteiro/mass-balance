@@ -10,7 +10,7 @@ st.set_page_config(
     page_icon="✈️"
 )
 
-# ==== DATA DEFINITIONS ====
+# ===================== DATA DEFINITIONS ======================
 aircraft_data = {
     "Tecnam P2008": {
         "fuel_arm": 2.209,
@@ -85,9 +85,9 @@ def get_color(val, limit):
     if val > limit:
         return "#c70000"  # Red
     elif val > (limit * 0.97):
-        return "#ffa500"  # Orange
+        return "#ffae42"  # EASA safety orange
     else:
-        return "#2596be"  # Blue
+        return "#1a4467"  # EASA deep blue
 
 def get_cg_color(cg, limits):
     if not limits: return "#212121"
@@ -96,9 +96,9 @@ def get_cg_color(cg, limits):
     if cg < mn or cg > mx:
         return "#c70000"
     elif cg < mn + margin or cg > mx - margin:
-        return "#ffa500"
+        return "#ffae42"
     else:
-        return "#2596be"
+        return "#1a4467"
 
 def colorize(text, color, bold=True):
     style = f"color:{color};"
@@ -109,46 +109,54 @@ def colorize(text, color, bold=True):
 def utc_now():
     return datetime.datetime.now(pytz.UTC)
 
-# ==== SIDEBAR ====
+# ================ SIDEBAR ================
 with st.sidebar:
-    st.markdown("## ✈️ Aircraft & Limits")
+    st.markdown("## ✈️ Aircraft & Docs")
     aircraft = st.selectbox("Select Aircraft", list(aircraft_data.keys()))
     ac = aircraft_data[aircraft]
     icon_path = icons.get(aircraft)
     if icon_path and Path(icon_path).exists():
-        st.image(icon_path, width=220)
-    st.markdown(f"#### **Operational Limits**")
+        st.image(icon_path, width=210)
+    st.markdown(f"#### Operational Limits")
     st.code(get_limits_text(ac))
     afm_path = afm_files.get(aircraft)
     if afm_path and Path(afm_path).exists():
         with open(afm_path, "rb") as f:
             st.download_button(
-                "📖 Download Aircraft Flight Manual (AFM)",
+                "📖 Download AFM",
                 f, file_name=afm_path, mime="application/pdf"
             )
 
-# ==== HEADER ====
+# ================ HEADER ================
 st.markdown(
-    f"""
-    <div style='
+    """
+    <style>
+    h1.title-main {
         text-align:center;
-        padding-bottom:0.3em;
-        padding-top:0.2em;
-    '>
-    <span style="font-family:Segoe UI,Arial,sans-serif;font-size:2.5rem;font-weight:700;color:#1a4467;">
-        {aircraft}
-    </span>
-    <br>
-    <span style="color:#555;font-size:1.15rem;font-weight:400;">
-        EASA Style Mass & Balance Planner
-    </span>
-    </div>
+        color: #1a4467;
+        font-size:2.5rem;
+        font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+        font-weight:700;
+        margin-bottom:0;
+    }
+    .subtitle {
+        text-align:center;
+        color: #555;
+        font-size:1.15rem;
+        font-weight:400;
+        margin-top:0;
+        margin-bottom:1.2em;
+    }
+    </style>
     """, unsafe_allow_html=True
 )
+st.markdown(f"<h1 class='title-main'>{aircraft}</h1>", unsafe_allow_html=True)
+st.markdown("<div class='subtitle'>EASA-Style Mass & Balance Planner</div>", unsafe_allow_html=True)
 
+# ================ INPUT MODE ================
 fuel_mode = st.radio(
-    "Fuel input mode",
-    ["Automatic maximum fuel (recommended)", "Manual fuel volume"],
+    "Fuel Input Mode",
+    ["Automatic (Max Fuel)", "Manual (Set Fuel Volume)"],
     horizontal=True,
     index=0
 )
@@ -162,12 +170,13 @@ def input_field(label, key, val, units):
         key=key
     )
 
-# ==== LAYOUT ====
 st.markdown("---")
-left, center, right = st.columns([1.1,1.3,1.1])
+
+# ================ LAYOUT: 3 COLUMN ================
+left, center, right = st.columns([1.08,1.32,1.05])
 
 with left:
-    st.markdown("### Aircraft Loading")
+    st.markdown("#### Aircraft Loading")
     if isinstance(ac['baggage_arm'], list):
         ew        = input_field("Empty Weight",      "ew",     0.0, ac['units']['weight'])
         ew_arm    = input_field("Empty Weight Arm",  "ew_arm", 0.0, ac['units']['arm'])
@@ -192,7 +201,7 @@ with left:
         if fuel_weight_possible <= tank_capacity_weight:
             fuel_weight = fuel_weight_possible
             fuel_vol = fuel_weight / fuel_density
-            fuel_limit_by = "Maximum Weight"
+            fuel_limit_by = "Max Weight"
         else:
             fuel_weight = tank_capacity_weight
             fuel_vol = ac['max_fuel_volume']
@@ -218,7 +227,7 @@ with left:
     baggage_sum = bag1 + bag2
 
 with center:
-    st.markdown("### Cockpit Mass & Balance Table")
+    st.markdown("#### Mass & Balance Table")
     def cockpit_table_html(items, units_wt, units_arm):
         css = """
         <style>
@@ -226,21 +235,23 @@ with center:
             width: 99%;
             border-collapse: collapse;
             font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+            margin-top:10px;
+            margin-bottom:15px;
         }
         .cockpit-table th, .cockpit-table td {
-            border: 1px solid #b7c0c6;
+            border: 1.2px solid #d3dce3;
             padding: 9px 0 9px 0;
             text-align: center;
             font-size: 16px;
         }
         .cockpit-table th {
             background: #e7f0f7;
-            color: #19587d;
+            color: #1a4467;
             font-weight: bold;
         }
         .cockpit-table td:first-child, .cockpit-table th:first-child {
             text-align: left;
-            padding-left: 14px;
+            padding-left: 16px;
         }
         </style>
         """
@@ -276,12 +287,10 @@ with center:
     st.markdown(cockpit_table_html(items, units_wt, units_arm), unsafe_allow_html=True)
 
 with right:
-    st.markdown("### Summary & Alerts")
+    st.markdown("#### Summary & Alerts")
     fuel_str = (
-        f"Fuel possible: {colorize(f'{fuel_vol:.1f} {'L' if units_wt=='kg' else 'gal'} / {fuel_weight:.1f} {units_wt}', '#1c64a5', bold=True)} "
-        f"({'Tank Capacity' if fuel_limit_by == 'Tank Capacity' else 'Maximum Weight'})"
-        if fuel_mode.startswith("Automatic")
-        else f"Fuel: {colorize(f'{fuel_vol:.1f} {'L' if units_wt=='kg' else 'gal'} / {fuel_weight:.1f} {units_wt}', '#1c64a5', bold=True)}"
+        f"Fuel: {colorize(f'{fuel_vol:.1f} {'L' if units_wt=='kg' else 'gal'} / {fuel_weight:.1f} {units_wt}', '#1a4467', bold=True)} "
+        f"({fuel_limit_by})"
     )
     st.markdown(fuel_str, unsafe_allow_html=True)
     st.markdown(
@@ -296,7 +305,7 @@ with right:
             unsafe_allow_html=True
         )
 
-    # ==== ALERTS ====
+    # ===== ALERTS =====
     alert_list = []
     if total_weight > ac['max_takeoff_weight']:
         alert_list.append("Total weight exceeds maximum takeoff weight!")
@@ -325,11 +334,11 @@ with right:
             )
     else:
         st.markdown(
-            "<span style='color:#14833b;font-size:1.03rem;font-weight:500;'>✔️ All parameters within limits.</span>",
+            "<span style='color:#14833b;font-size:1.01rem;font-weight:500;'>✔️ All parameters within limits.</span>",
             unsafe_allow_html=True
         )
 
-# ==== PDF GENERATION ====
+# ================ PDF GENERATION ================
 def generate_pdf(aircraft, registration, mission_number, flight_datetime_utc,
                  ew, ew_arm, pilot, bag1, bag2, fuel_weight, fuel_vol,
                  m_empty, m_pilot, m_bag1, m_bag2, m_fuel,
@@ -337,18 +346,17 @@ def generate_pdf(aircraft, registration, mission_number, flight_datetime_utc,
     pdf = FPDF()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
-
     # HEADER
     pdf.set_font("Arial", 'B', 17)
     pdf.set_text_color(26, 68, 103)
     pdf.cell(0, 13, "Mass & Balance Report", ln=True, align='C')
     pdf.set_text_color(0, 0, 0)
     pdf.set_font("Arial", '', 12)
-    pdf.cell(0, 9, f"Aircraft: {aircraft} ({registration})", ln=True)
-    pdf.cell(0, 9, f"Mission Number: {mission_number}", ln=True)
-    pdf.cell(0, 9, f"Flight (UTC): {flight_datetime_utc}", ln=True)
-    pdf.cell(0, 9, "Operator: Sevenair Academy", ln=True)
-    pdf.ln(5)
+    pdf.cell(0, 8, f"Aircraft: {aircraft} ({registration})", ln=True)
+    pdf.cell(0, 8, f"Mission Number: {mission_number}", ln=True)
+    pdf.cell(0, 8, f"Flight (UTC): {flight_datetime_utc}", ln=True)
+    pdf.cell(0, 8, "Operator: Sevenair Academy", ln=True)
+    pdf.ln(3)
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(0, 8, "Operational Limits:", ln=True)
     pdf.set_font("Arial", '', 11)
@@ -384,30 +392,30 @@ def generate_pdf(aircraft, registration, mission_number, flight_datetime_utc,
         pdf.cell(col_widths[2], 8, f"{row[2]:.3f}", border=1, align='C')
         pdf.cell(col_widths[3], 8, f"{row[3]:.2f}", border=1, align='C')
         pdf.ln()
-    pdf.ln(4)
+    pdf.ln(3)
     # SUMMARY
     pdf.set_font("Arial", 'B', 12)
     color_tw = get_color(total_weight, ac['max_takeoff_weight'])
     cg_col = get_cg_color(cg, ac['cg_limits']) if ac['cg_limits'] else "#212121"
     # Fuel
-    fuel_str = f"Fuel: {fuel_vol:.1f} {'L' if ac['units']['weight']=='kg' else 'gal'} / {fuel_weight:.1f} {ac['units']['weight']} ({'Tank Capacity' if fuel_limit_by == 'Tank Capacity' else 'Maximum Weight'})"
     pdf.set_text_color(30, 100, 165)
+    fuel_str = f"Fuel: {fuel_vol:.1f} {'L' if ac['units']['weight']=='kg' else 'gal'} / {fuel_weight:.1f} {ac['units']['weight']} ({fuel_limit_by})"
     pdf.cell(0, 8, fuel_str, ln=True)
     # Total Weight
-    if color_tw == "#2596be":
-        pdf.set_text_color(36, 150, 190)
-    elif color_tw == "#ffa500":
-        pdf.set_text_color(255, 165, 0)
+    if color_tw == "#1a4467":
+        pdf.set_text_color(36, 70, 103)
+    elif color_tw == "#ffae42":
+        pdf.set_text_color(255, 174, 66)
     elif color_tw == "#c70000":
         pdf.set_text_color(200, 0, 0)
     pdf.cell(0, 8, f"Total Weight: {total_weight:.2f} {ac['units']['weight']}", ln=True)
     pdf.set_text_color(0,0,0)
     pdf.cell(0, 8, f"Total Moment: {total_moment:.2f} {ac['units']['weight']}·{ac['units']['arm']}", ln=True)
     if ac['cg_limits']:
-        if cg_col == "#2596be":
-            pdf.set_text_color(36, 150, 190)
-        elif cg_col == "#ffa500":
-            pdf.set_text_color(255, 165, 0)
+        if cg_col == "#1a4467":
+            pdf.set_text_color(36, 70, 103)
+        elif cg_col == "#ffae42":
+            pdf.set_text_color(255, 174, 66)
         elif cg_col == "#c70000":
             pdf.set_text_color(200, 0, 0)
         pdf.cell(0, 8, f"CG: {cg:.3f} {ac['units']['arm']}", ln=True)
@@ -426,20 +434,20 @@ def generate_pdf(aircraft, registration, mission_number, flight_datetime_utc,
         pdf.set_text_color(20, 130, 60)
         pdf.cell(0, 8, "✔ All parameters within limits.", ln=True)
         pdf.set_text_color(0,0,0)
-    pdf.ln(6)
+    pdf.ln(5)
     pdf.set_font("Arial", 'I', 9)
-    pdf.set_text_color(50,50,50)
+    pdf.set_text_color(70,70,70)
     pdf.cell(0, 8, "Auto-generated by Mass & Balance Planner (Streamlit)", ln=True)
     return pdf
 
-# ==== PDF EXPORT ====
+# ================ PDF EXPORT ================
 st.markdown("---")
-with st.expander("📑 Generate PDF report (EASA style cockpit sheet)"):
+with st.expander("📑 Generate PDF report (EASA-style)"):
     registration = st.text_input("Aircraft registration", value="CS-XXX")
     mission_number = st.text_input("Mission number", value="001")
     utc_today = utc_now()
     default_datetime = utc_today.strftime("%Y-%m-%d %H:%M UTC")
-    flight_datetime_utc = st.text_input("Scheduled flight date and time (UTC)", value=default_datetime)
+    flight_datetime_utc = st.text_input("Scheduled flight date/time (UTC)", value=default_datetime)
     if st.button("Generate PDF with current values"):
         pdf = generate_pdf(
             aircraft, registration, mission_number, flight_datetime_utc,
@@ -452,14 +460,13 @@ with st.expander("📑 Generate PDF report (EASA style cockpit sheet)"):
             st.download_button("⬇️ Download PDF", f, file_name=pdf_file, mime="application/pdf")
         st.success("PDF generated successfully!")
 
-# ==== FOOTER ====
+# ================ FOOTER ================
 st.markdown(
-    "<hr><div style='text-align:center;color:#888;font-size:0.96rem;'>"
+    "<hr><div style='text-align:center;color:#aaa;font-size:0.97rem;'>"
     "© 2024 EASA-style Mass & Balance Planner &bull; <a href='https://www.easa.europa.eu/' target='_blank'>EASA</a> / Sevenair Academy"
     "</div>",
     unsafe_allow_html=True
 )
-
 
 
 
