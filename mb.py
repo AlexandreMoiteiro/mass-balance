@@ -50,13 +50,44 @@ def inject_css():
         .easa-limit-ok { color: #2c7c1a; font-weight:600; }
         .easa-limit-warn { color: #ff9000; font-weight:600; }
         .easa-limit-bad { color: #b30000; font-weight:600; }
-        .easa-label { font-size: 0.97rem; color: #144377; }
-        .stDownloadButton { margin-top: 15px !important; }
-        .easa-pdf-footer { font-size:9px;color:#195ba6;opacity:0.85; }
-        .required-field {color:#b30000;font-weight:bold;}
         .site-copyright { font-size: 0.93rem; color: #888; text-align: center; margin-top: 40px; margin-bottom: 10px; }
+        .required-field {color:#b30000;font-weight:bold;}
+        /* INFO MODAL */
+        .modal-overlay {
+            position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.21);
+            z-index: 10001; display:flex; align-items:center; justify-content:center;
+        }
+        .info-modal {
+            background: #f4f8fc;
+            color: #232323;
+            border-radius: 18px;
+            box-shadow: 0 4px 24px #0002;
+            padding: 2em 2.2em 1.2em 2.2em;
+            max-width: 350px;
+            min-width: 290px;
+            z-index: 10002;
+            font-size: 1.01rem;
+            border: 1px solid #195ba625;
+            position: relative;
+        }
+        .info-modal-close {
+            position: absolute;
+            right: 16px; top: 13px;
+            font-size: 1.3rem; color: #666;
+            background: none; border: none; cursor:pointer;
+        }
+        .legend-dot {
+            display: inline-block;
+            width: 15px; height: 15px;
+            border-radius: 50%; margin-right: 7px;
+        }
+        .legend-ok { background: #2c7c1a;}
+        .legend-warn { background: #ff9000;}
+        .legend-bad { background: #b30000;}
+        /* Info button */
         .info-fab {
-            position: fixed; right: 24px; bottom: 24px; z-index: 1001;
+            position: fixed; right: 24px; bottom: 24px; z-index: 10003;
             background: #195ba6;
             color: #fff;
             width: 54px; height: 54px;
@@ -68,39 +99,11 @@ def inject_css():
             display: flex; align-items: center; justify-content: center;
         }
         .info-fab:hover { background: #165090;}
-        .info-modal {
-            position: fixed;
-            right: 20px; bottom: 90px;
-            background: #f4f8fc;
-            color: #232323;
-            border-radius: 18px;
-            box-shadow: 0 4px 24px #0001;
-            padding: 2.1em 2em 1.4em 2em;
-            max-width: 350px;
-            width: 96vw;
-            z-index: 2002;
-            font-size: 1.01rem;
-            border: 1px solid #195ba625;
-        }
-        .info-modal-close {
-            position: absolute;
-            right: 16px; top: 14px;
-            font-size: 1.2rem; color: #666;
-            background: none; border: none; cursor:pointer;
-        }
-        .legend-dot {
-            display: inline-block;
-            width: 15px; height: 15px;
-            border-radius: 50%; margin-right: 7px;
-        }
-        .legend-ok { background: #2c7c1a;}
-        .legend-warn { background: #ff9000;}
-        .legend-bad { background: #b30000;}
         </style>
     """, unsafe_allow_html=True)
 inject_css()
 
-# -- AIRCRAFT data (expandable in future) --
+# -- AIRCRAFT DATA --
 aircraft_data = {
     "Tecnam P2008": {
         "fuel_arm": 2.209,
@@ -163,13 +166,12 @@ def colorize(text, class_, bold=True):
 def utc_now():
     return datetime.datetime.now(pytz.UTC)
 
+# --- SIDEBAR ---
 with st.sidebar:
     st.markdown('<span class="easa-header">Mass & Balance</span>', unsafe_allow_html=True)
-    aircrafts = list(aircraft_data.keys()) + ["More aircraft coming soon..."]
-    aircraft = st.selectbox("Aircraft type", aircrafts, index=0)
-    if aircraft not in aircraft_data:
-        st.info("Only Tecnam P2008 is available right now. More aircraft coming soon!")
-        st.stop()
+    # Selectbox with info text below (not as option!)
+    aircraft = st.selectbox("Aircraft type", list(aircraft_data.keys()))
+    st.markdown('<span style="color:#666; font-size:0.97rem;">More aircraft coming soon...</span>', unsafe_allow_html=True)
     ac = aircraft_data[aircraft]
     icon_path = icons.get(aircraft)
     if icon_path and Path(icon_path).exists():
@@ -457,87 +459,78 @@ def send_suggestion_email(name, email, msg):
     }
     requests.post("https://api.sendgrid.com/v3/mail/send", data=json.dumps(data), headers=headers)
 
-# ============= INFO ICON & MODAL =============
+# ============= INFO ICON + "MODAL" CONTAINER =============
 
-# Info modal state
-if "info_modal_open" not in st.session_state:
-    st.session_state["info_modal_open"] = False
+if "show_info_modal" not in st.session_state:
+    st.session_state["show_info_modal"] = False
+def open_info():
+    st.session_state["show_info_modal"] = True
+def close_info():
+    st.session_state["show_info_modal"] = False
 
-info_icon = """
-<button class="info-fab" onclick="window.dispatchEvent(new Event('info-modal'))">ℹ️</button>
-<script>
-window.addEventListener('info-modal', function(){
-    if(window.parent) window.parent.postMessage({openInfoModal: true}, "*");
-});
-</script>
-"""
-
-info_modal_html = """
-<div class="info-modal" id="info-modal" style="display:block;">
-<button class="info-modal-close" onclick="window.parent.postMessage({closeInfoModal:true}, '*');">&times;</button>
-<b>How does it work?</b><br>
-<ul style='margin-bottom:0.5em;'>
-<li>Fill in the weights, empty moment, and select fuel mode.</li>
-<li>Color code indicates your result status:</li>
-</ul>
-<div>
-    <span class="legend-dot legend-ok"></span> <b>Green</b>: within limits<br>
-    <span class="legend-dot legend-warn"></span> <b>Orange</b>: near limit<br>
-    <span class="legend-dot legend-bad"></span> <b>Red</b>: outside legal/safe limit
-</div>
-<hr style="margin:1.1em 0 0.8em 0;">
-<b>Contact administrator / Suggestion / Bug</b>
-<form id="contact-form">
-  <input style="width:99%;margin-bottom:5px;" type="text" id="contact_name" placeholder="Your name"><br>
-  <input style="width:99%;margin-bottom:5px;" type="text" id="contact_email" placeholder="Your email (optional)"><br>
-  <textarea style="width:99%;height:56px;" id="contact_msg" placeholder="Message or suggestion"></textarea><br>
-  <button style="margin-top:8px;width:100%;" type="button" id="contact_send">Send</button>
-</form>
-<div id="contact_result" style="margin-top:8px;font-size:0.99em;"></div>
-<script>
-if(window.infoModalSetup){}else{
-  window.infoModalSetup=1;
-  window.addEventListener("message", function(ev){
-    if(ev.data && ev.data.openInfoModal){
-      document.getElementById('info-modal').style.display = 'block';
-    }
-    if(ev.data && ev.data.closeInfoModal){
-      document.getElementById('info-modal').style.display = 'none';
-    }
-  });
-  document.querySelector("#contact_send").onclick = function(){
-    let name = document.getElementById("contact_name").value||"";
-    let email = document.getElementById("contact_email").value||"";
-    let msg = document.getElementById("contact_msg").value||"";
-    window.parent.postMessage({
-      submitContact:{name:name,email:email,msg:msg}
-    }, "*");
-    document.getElementById("contact_result").innerText="Message sent!";
-    document.getElementById("contact_form").reset();
-  };
-}
-</script>
-</div>
-"""
-
-# Render info icon button (fixed)
-st.markdown(info_icon, unsafe_allow_html=True)
-if st.session_state["info_modal_open"]:
-    st.markdown(info_modal_html, unsafe_allow_html=True)
-
-# Streamlit cannot natively listen for frontend JS events,
-# so we handle form submission via main form, for now use this:
-with st.sidebar.expander("Contact administrator / Suggestion / Bug", expanded=False):
-    sug_name = st.text_input("Your name", value="", key="sug_nome")
-    sug_email = st.text_input("Your email (optional)", value="", key="sug_email")
-    sug_msg = st.text_area("Message", height=70, max_chars=900, key="sug_msg")
-    sug_send = st.button("Send message", key="sug_btn")
-    if sug_send:
-        if not sug_msg.strip():
-            st.warning("Please write your message before sending.")
-        else:
-            send_suggestion_email(sug_name, sug_email, sug_msg)
-            st.success("Message sent successfully! Thank you for your feedback.")
+st.markdown(
+    """
+    <button class="info-fab" onclick="window.parent.postMessage({toggleInfo:true}, '*')">ℹ️</button>
+    <script>
+    window.addEventListener("message", (e)=>{
+        if(e.data && e.data.toggleInfo){
+            window.parent.document.querySelector('iframe').contentWindow.streamlitSend({type:'streamlit:setComponentValue', key:'info-modal-toggle'});
+        }
+    });
+    </script>
+    """,
+    unsafe_allow_html=True
+)
+info_btn = st.button("ℹ️ Info & Contact", key="info_modal_btn", on_click=open_info, help="Information and contact administrator", args=())
+if st.session_state["show_info_modal"]:
+    # Overlay modal
+    st.markdown('<div class="modal-overlay"></div>', unsafe_allow_html=True)
+    with st.container():
+        st.markdown(
+            '<div class="info-modal">',
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            '<button class="info-modal-close" onclick="window.parent.postMessage({closeInfo:true},\'*\')">&times;</button>',
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            """
+            <b>How does it work?</b>
+            <ul style='margin-bottom:0.5em;'>
+            <li>Fill in the weights, empty moment, and select fuel mode.</li>
+            <li>Color code indicates your result status:</li>
+            </ul>
+            <div>
+                <span class="legend-dot legend-ok"></span> <b>Green</b>: within limits<br>
+                <span class="legend-dot legend-warn"></span> <b>Orange</b>: near limit<br>
+                <span class="legend-dot legend-bad"></span> <b>Red</b>: outside legal/safe limit
+            </div>
+            <hr style="margin:1.1em 0 0.8em 0;">
+            """,
+            unsafe_allow_html=True
+        )
+        with st.form("contact_admin_form"):
+            st.markdown("<b>Contact administrator / Suggestion / Bug</b>", unsafe_allow_html=True)
+            sug_name = st.text_input("Your name", value="", key="modal_nome")
+            sug_email = st.text_input("Your email (optional)", value="", key="modal_email")
+            sug_msg = st.text_area("Message", height=70, max_chars=900, key="modal_msg")
+            col1, col2 = st.columns([0.7,0.3])
+            with col1:
+                send_btn = st.form_submit_button("Send")
+            with col2:
+                close_btn = st.form_submit_button("Close")
+            sent = False
+            if send_btn:
+                if not sug_msg.strip():
+                    st.warning("Please write your message before sending.")
+                else:
+                    send_suggestion_email(sug_name, sug_email, sug_msg)
+                    st.success("Message sent successfully! Thank you for your feedback.")
+                    sent = True
+            if close_btn or sent:
+                close_info()
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # ----------- PDF REPORT -----------
 st.markdown('<div class="easa-section-title">PDF Report</div>', unsafe_allow_html=True)
@@ -577,3 +570,4 @@ with st.expander("Generate PDF report", expanded=False):
 
 # ---------- COPYRIGHT ----------
 st.markdown('<div class="site-copyright">Site developed by Alexandre Moiteiro. All rights reserved.</div>', unsafe_allow_html=True)
+
