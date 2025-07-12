@@ -25,11 +25,6 @@ st.markdown(f"""
             gap: 1.2em;
             margin-bottom: 22px;
         }}
-        .top-bar-logo {{
-            width: 56px; height: 56px; border-radius: 10px;
-            object-fit: contain; box-shadow:0 0 8px #eee;
-            background: #fff;
-        }}
         .main-title {{
             font-size: 2.1em;
             color: {BRAND_COLOR};
@@ -84,12 +79,6 @@ st.markdown(f"""
             color:#b82323; background:#fff3f2; border-left: 5px solid #b82323;
             padding:9px 15px; margin:9px 0 16px 0; border-radius:3px; font-weight:600;
         }}
-        .card {
-            background: #f4f7fb;
-            border-radius: 10px;
-            padding: 1.2em 1em;
-            margin-bottom: 1.2em;
-        }
         .stDownloadButton button {{
             background: {BRAND_COLOR} !important;
             color: #fff !important;
@@ -194,19 +183,9 @@ def utc_now():
     return datetime.datetime.now(pytz.UTC)
 
 # ========= TOP BAR ==========
-st.markdown('<div class="top-bar">', unsafe_allow_html=True)
-try:
-    with open("logo.png", "rb") as f:
-        st.image(f, width=56)
-except Exception:
-    pass  # If no logo, it's fine.
-st.markdown('</div>', unsafe_allow_html=True)
-
-# ========= TITLE ==========
-col1, col2 = st.columns([1,6])
-with col2:
-    st.markdown(f'<div class="main-title">Mass & Balance Planner</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="subtitle">Simple, modern and pro. No distractions.</div>', unsafe_allow_html=True)
+st.markdown('<div class="top-bar"></div>', unsafe_allow_html=True)
+st.markdown(f'<div class="main-title">Mass & Balance Planner</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="subtitle">Simple, modern and pro. No distractions.</div>', unsafe_allow_html=True)
 
 # ========= SELECT AIRCRAFT & SHOW INFO ==========
 st.markdown('<div class="section">', unsafe_allow_html=True)
@@ -467,6 +446,7 @@ with st.expander("Generate PDF Report"):
         st.success("PDF generated!")
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
