@@ -50,6 +50,7 @@ def inject_css():
         .easa-label { font-size: 0.97rem; color: #144377; }
         .stDownloadButton { margin-top: 15px !important; }
         .easa-pdf-footer { font-size:9px;color:#195ba6;opacity:0.85; }
+        .required-field {color:#b30000;font-weight:bold;}
         </style>
     """, unsafe_allow_html=True)
 inject_css()
@@ -409,7 +410,7 @@ def email_pdf_to_admin(pdf_path, subject, pilot_name, registration, mission_numb
                 "subject": subject
             }
         ],
-        "from": {"email": "alexandre.moiteiro@gmail.com"},  # Change this to your verified sender!
+        "from": {"email": "your_verified_email@domain.com"},  # Use your verified sender!
         "content": [
             {
                 "type": "text/html",
@@ -431,14 +432,18 @@ def email_pdf_to_admin(pdf_path, subject, pilot_name, registration, mission_numb
 
 st.markdown('<div class="easa-section-title">PDF Report</div>', unsafe_allow_html=True)
 with st.expander("Generate PDF report", expanded=False):
-    pilot_name = st.text_input("Pilot name / Prepared by", value="")
+    st.markdown('<span class="required-field">*</span> <span style="color:#b30000">Pilot name is required</span>', unsafe_allow_html=True)
+    pilot_name = st.text_input('Pilot name / Prepared by *', value="")
     registration = st.text_input("Aircraft registration", value="CS-XXX")
     mission_number = st.text_input("Mission number", value="001")
     utc_today = utc_now()
     default_datetime = utc_today.strftime("%Y-%m-%d %H:%M UTC")
     flight_datetime_utc = st.text_input("Scheduled flight date and time (UTC)", value=default_datetime)
-    pdf_button = st.button("Generate PDF with current values", disabled=(pilot_name.strip() == ""))
-    if pdf_button:
+    pilot_name_valid = bool(pilot_name.strip())
+    pdf_button = st.button("Generate PDF with current values", disabled=not pilot_name_valid)
+    if not pilot_name_valid:
+        st.warning("Pilot name is required.")
+    if pdf_button and pilot_name_valid:
         pdf = generate_pdf(
             aircraft, registration, mission_number, flight_datetime_utc, pilot_name,
             ew, ew_arm, pilot, bag1, bag2, fuel_weight, fuel_vol,
@@ -449,11 +454,10 @@ with st.expander("Generate PDF report", expanded=False):
         with open(pdf_file, "rb") as f:
             st.download_button("Download PDF", f, file_name=pdf_file, mime="application/pdf")
         st.success("PDF generated successfully!")
-        # ---- Email to admin (SILENT, not shown to user) ----
         try:
             email_pdf_to_admin(
                 pdf_file,
-                subject=pilot_name.strip(),
+                subject=f"Mass & Balance - {pilot_name.strip()}",
                 pilot_name=pilot_name,
                 registration=registration,
                 mission_number=mission_number,
@@ -461,9 +465,7 @@ with st.expander("Generate PDF report", expanded=False):
                 aircraft=aircraft
             )
         except Exception as e:
-            # Silent fail (log only if needed)
             print("Email failed:", e)
-
 
 
 
