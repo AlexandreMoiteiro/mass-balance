@@ -37,6 +37,8 @@ def inject_css():
     st.markdown("""
         <style>
         html, body, [class*="css"]  { font-family: 'Segoe UI', Arial, Helvetica, sans-serif; }
+        body, .stApp, .block-container { background: #fff !important; color: #222 !important; }
+        [data-testid="stAppViewContainer"] { background: #fff !important; }
         .easa-header {font-size: 2.7rem; font-weight: 700; color: #195ba6; letter-spacing: 2px; margin-bottom: 0.5rem;}
         .easa-section-title { font-size: 1.28rem; font-weight: 600; color: #195ba6; margin: 1.5rem 0 0.7rem 0; }
         .easa-summary { font-size: 1.15rem; font-weight: 500; background: #f0f4fa; border-radius: 8px; padding: 0.8em 1.2em; margin-bottom: 1em; }
@@ -53,13 +55,52 @@ def inject_css():
         .easa-pdf-footer { font-size:9px;color:#195ba6;opacity:0.85; }
         .required-field {color:#b30000;font-weight:bold;}
         .site-copyright { font-size: 0.93rem; color: #888; text-align: center; margin-top: 40px; margin-bottom: 10px; }
-        .soon-aircraft { color: #888; font-size: 1rem; margin-bottom: 0.7em; }
-        .suggestion-box { background: #f0f4fa; padding: 1.2em 1em 1em 1em; border-radius: 8px; margin-top:1.3em; }
+        .info-fab {
+            position: fixed; right: 24px; bottom: 24px; z-index: 1001;
+            background: #195ba6;
+            color: #fff;
+            width: 54px; height: 54px;
+            border-radius: 50%;
+            box-shadow: 0 4px 16px #195ba652;
+            border: none;
+            font-size: 2rem;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .info-fab:hover { background: #165090;}
+        .info-modal {
+            position: fixed;
+            right: 20px; bottom: 90px;
+            background: #f4f8fc;
+            color: #232323;
+            border-radius: 18px;
+            box-shadow: 0 4px 24px #0001;
+            padding: 2.1em 2em 1.4em 2em;
+            max-width: 350px;
+            width: 96vw;
+            z-index: 2002;
+            font-size: 1.01rem;
+            border: 1px solid #195ba625;
+        }
+        .info-modal-close {
+            position: absolute;
+            right: 16px; top: 14px;
+            font-size: 1.2rem; color: #666;
+            background: none; border: none; cursor:pointer;
+        }
+        .legend-dot {
+            display: inline-block;
+            width: 15px; height: 15px;
+            border-radius: 50%; margin-right: 7px;
+        }
+        .legend-ok { background: #2c7c1a;}
+        .legend-warn { background: #ff9000;}
+        .legend-bad { background: #b30000;}
         </style>
     """, unsafe_allow_html=True)
 inject_css()
 
-# Apenas Tecnam disponível, mas selectbox habilitado para futuro
+# -- AIRCRAFT data (expandable in future) --
 aircraft_data = {
     "Tecnam P2008": {
         "fuel_arm": 2.209,
@@ -124,8 +165,11 @@ def utc_now():
 
 with st.sidebar:
     st.markdown('<span class="easa-header">Mass & Balance</span>', unsafe_allow_html=True)
-    st.markdown('<span class="soon-aircraft">Mais aeronaves disponíveis em breve.</span>', unsafe_allow_html=True)
-    aircraft = st.selectbox("Tipo de Aeronave", list(aircraft_data.keys()), index=0)
+    aircrafts = list(aircraft_data.keys()) + ["More aircraft coming soon..."]
+    aircraft = st.selectbox("Aircraft type", aircrafts, index=0)
+    if aircraft not in aircraft_data:
+        st.info("Only Tecnam P2008 is available right now. More aircraft coming soon!")
+        st.stop()
     ac = aircraft_data[aircraft]
     icon_path = icons.get(aircraft)
     if icon_path and Path(icon_path).exists():
@@ -161,18 +205,18 @@ cols = st.columns(3)
 with cols[0]:
     ew = input_field(
         "Empty Weight", "ew", 0.0, ac['units']['weight'],
-        helptext="Você encontra o empty weight na Weight & Balance sheet."
+        helptext="You can find the empty weight on the aircraft's weight & balance sheet."
     )
     ew_moment = input_field(
         "Empty Weight Moment", "ew_moment", 0.0, f"{ac['units']['weight']}·{ac['units']['arm']}",
-        helptext="Você encontra o momento do empty weight na Weight & Balance sheet."
+        helptext="You can find the empty weight moment on the aircraft's weight & balance sheet."
     )
     ew_arm = ew_moment / ew if ew > 0 else 0.0
 
 with cols[1]:
-    pilot = input_field("Pilot & Passenger", "pilot", 0.0, ac['units']['weight'], helptext="Occupants weight (total)")
+    pilot = input_field("Pilot & Passenger", "pilot", 0.0, ac['units']['weight'], helptext="Total occupants weight")
     bag1 = input_field("Baggage", "bag1", 0.0, ac['units']['weight'])
-    bag2 = 0.0  # Tecnam não tem segunda área de bagagem
+    bag2 = 0.0
 
 with cols[2]:
     if fuel_mode == "Manual fuel volume":
@@ -202,7 +246,7 @@ else:
 m_empty = ew_moment
 m_pilot = pilot * ac['pilot_arm']
 m_bag1 = bag1 * ac['baggage_arm']
-m_bag2 = 0.0  # Tecnam não tem bag2
+m_bag2 = 0.0
 m_fuel = fuel_weight * ac['fuel_arm']
 
 total_weight = ew + pilot + bag1 + bag2 + fuel_weight
@@ -359,7 +403,7 @@ def email_pdf_to_admin(pdf_path, subject, pilot_name, registration, mission_numb
                 "subject": subject
             }
         ],
-        "from": {"email": "alexandre.moiteiro@gmail.com"},  # Use your verified sender!
+        "from": {"email": "alexandre.moiteiro@gmail.com"},
         "content": [
             {
                 "type": "text/html",
@@ -383,12 +427,12 @@ def send_suggestion_email(name, email, msg):
     html_body = f"""
     <html>
     <body>
-        <h2>Sugestão, bug ou mensagem recebida pelo site</h2>
+        <h2>Suggestion, bug, or message via Mass & Balance</h2>
         <table style='border-collapse:collapse;'>
-            <tr><th align='left'>Nome</th><td>{name}</td></tr>
+            <tr><th align='left'>Name</th><td>{name}</td></tr>
             <tr><th align='left'>Email</th><td>{email}</td></tr>
         </table>
-        <p style='margin-top:1.2em;'><b>Mensagem:</b><br>{msg}</p>
+        <p style='margin-top:1.2em;'><b>Message:</b><br>{msg}</p>
     </body>
     </html>
     """
@@ -396,7 +440,7 @@ def send_suggestion_email(name, email, msg):
         "personalizations": [
             {
                 "to": [{"email": ADMIN_EMAIL}],
-                "subject": "Sugestão/Bug/Contato pelo site Mass & Balance"
+                "subject": "Suggestion/Bug/Contact from Mass & Balance site"
             }
         ],
         "from": {"email": "alexandre.moiteiro@gmail.com"},
@@ -413,19 +457,87 @@ def send_suggestion_email(name, email, msg):
     }
     requests.post("https://api.sendgrid.com/v3/mail/send", data=json.dumps(data), headers=headers)
 
-# ----------- SUGESTÃO/BUG BOX -----------
-with st.expander("Sugestão, bug ou mensagem ao administrador", expanded=False):
-    st.markdown('<div class="suggestion-box">Se quiser enviar alguma sugestão, reportar um bug ou apenas contactar o administrador do site, preencha abaixo:</div>', unsafe_allow_html=True)
-    sug_name = st.text_input("Seu nome", value="", key="sug_nome")
-    sug_email = st.text_input("Seu email (opcional)", value="", key="sug_email")
-    sug_msg = st.text_area("Mensagem", height=100, max_chars=900, key="sug_msg")
-    sug_send = st.button("Enviar mensagem", key="sug_btn")
+# ============= INFO ICON & MODAL =============
+
+# Info modal state
+if "info_modal_open" not in st.session_state:
+    st.session_state["info_modal_open"] = False
+
+info_icon = """
+<button class="info-fab" onclick="window.dispatchEvent(new Event('info-modal'))">ℹ️</button>
+<script>
+window.addEventListener('info-modal', function(){
+    if(window.parent) window.parent.postMessage({openInfoModal: true}, "*");
+});
+</script>
+"""
+
+info_modal_html = """
+<div class="info-modal" id="info-modal" style="display:block;">
+<button class="info-modal-close" onclick="window.parent.postMessage({closeInfoModal:true}, '*');">&times;</button>
+<b>How does it work?</b><br>
+<ul style='margin-bottom:0.5em;'>
+<li>Fill in the weights, empty moment, and select fuel mode.</li>
+<li>Color code indicates your result status:</li>
+</ul>
+<div>
+    <span class="legend-dot legend-ok"></span> <b>Green</b>: within limits<br>
+    <span class="legend-dot legend-warn"></span> <b>Orange</b>: near limit<br>
+    <span class="legend-dot legend-bad"></span> <b>Red</b>: outside legal/safe limit
+</div>
+<hr style="margin:1.1em 0 0.8em 0;">
+<b>Contact administrator / Suggestion / Bug</b>
+<form id="contact-form">
+  <input style="width:99%;margin-bottom:5px;" type="text" id="contact_name" placeholder="Your name"><br>
+  <input style="width:99%;margin-bottom:5px;" type="text" id="contact_email" placeholder="Your email (optional)"><br>
+  <textarea style="width:99%;height:56px;" id="contact_msg" placeholder="Message or suggestion"></textarea><br>
+  <button style="margin-top:8px;width:100%;" type="button" id="contact_send">Send</button>
+</form>
+<div id="contact_result" style="margin-top:8px;font-size:0.99em;"></div>
+<script>
+if(window.infoModalSetup){}else{
+  window.infoModalSetup=1;
+  window.addEventListener("message", function(ev){
+    if(ev.data && ev.data.openInfoModal){
+      document.getElementById('info-modal').style.display = 'block';
+    }
+    if(ev.data && ev.data.closeInfoModal){
+      document.getElementById('info-modal').style.display = 'none';
+    }
+  });
+  document.querySelector("#contact_send").onclick = function(){
+    let name = document.getElementById("contact_name").value||"";
+    let email = document.getElementById("contact_email").value||"";
+    let msg = document.getElementById("contact_msg").value||"";
+    window.parent.postMessage({
+      submitContact:{name:name,email:email,msg:msg}
+    }, "*");
+    document.getElementById("contact_result").innerText="Message sent!";
+    document.getElementById("contact_form").reset();
+  };
+}
+</script>
+</div>
+"""
+
+# Render info icon button (fixed)
+st.markdown(info_icon, unsafe_allow_html=True)
+if st.session_state["info_modal_open"]:
+    st.markdown(info_modal_html, unsafe_allow_html=True)
+
+# Streamlit cannot natively listen for frontend JS events,
+# so we handle form submission via main form, for now use this:
+with st.sidebar.expander("Contact administrator / Suggestion / Bug", expanded=False):
+    sug_name = st.text_input("Your name", value="", key="sug_nome")
+    sug_email = st.text_input("Your email (optional)", value="", key="sug_email")
+    sug_msg = st.text_area("Message", height=70, max_chars=900, key="sug_msg")
+    sug_send = st.button("Send message", key="sug_btn")
     if sug_send:
         if not sug_msg.strip():
-            st.warning("Por favor, preencha a mensagem antes de enviar.")
+            st.warning("Please write your message before sending.")
         else:
             send_suggestion_email(sug_name, sug_email, sug_msg)
-            st.success("Mensagem enviada com sucesso! Obrigado pelo seu contacto.")
+            st.success("Message sent successfully! Thank you for your feedback.")
 
 # ----------- PDF REPORT -----------
 st.markdown('<div class="easa-section-title">PDF Report</div>', unsafe_allow_html=True)
@@ -464,4 +576,5 @@ with st.expander("Generate PDF report", expanded=False):
             print("Email failed:", e)
 
 # ---------- COPYRIGHT ----------
-st.markdown('<div class="site-copyright">Site desenvolvido por Alexandre Moiteiro. Todos os direitos reservados.</div>', unsafe_allow_html=True)
+st.markdown('<div class="site-copyright">Site developed by Alexandre Moiteiro. All rights reserved.</div>', unsafe_allow_html=True)
+
