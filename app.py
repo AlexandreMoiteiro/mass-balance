@@ -139,13 +139,13 @@ def input_field(label, key, val, units):
 # ====== INPUTS ======
 if isinstance(ac['baggage_arm'], list):
     ew        = input_field("Empty Weight",      "ew",     0.0, ac['units']['weight'])
-    ew_arm    = input_field("EW Arm",            "ew_arm", 0.0, ac['units']['arm'])
+    ew_arm    = input_field("Empty Weight Arm",            "ew_arm", 0.0, ac['units']['arm'])
     pilot     = input_field("Pilot & Passenger", "pilot",  0.0, ac['units']['weight'])
     bag1      = input_field("Baggage Area 1",    "bag1",   0.0, ac['units']['weight'])
     bag2      = input_field("Baggage Area 2",    "bag2",   0.0, ac['units']['weight'])
 else:
     ew        = input_field("Empty Weight",      "ew",     0.0, ac['units']['weight'])
-    ew_arm    = input_field("EW Arm",            "ew_arm", 0.0, ac['units']['arm'])
+    ew_arm    = input_field("Empty Weight Arm",            "ew_arm", 0.0, ac['units']['arm'])
     pilot     = input_field("Pilot & Passenger", "pilot",  0.0, ac['units']['weight'])
     bag1      = input_field("Baggage",           "bag1",   0.0, ac['units']['weight'])
     bag2      = 0.0
