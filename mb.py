@@ -33,152 +33,36 @@ class CustomPDF(FPDF):
 
 st.set_page_config(page_title="Mass & Balance Planner", page_icon="🛩️", layout="wide")
 
-# ------------- CSS FOR LIGHT MODE + MODAL/ICON -----------
-st.markdown("""
-<style>
-body, .stApp, .block-container { background: #fff !important; color: #222 !important; }
-[data-testid="stAppViewContainer"] { background: #fff !important; }
-.easa-header {font-size: 2.7rem; font-weight: 700; color: #195ba6; letter-spacing: 2px; margin-bottom: 0.5rem;}
-.easa-section-title { font-size: 1.28rem; font-weight: 600; color: #195ba6; margin: 1.5rem 0 0.7rem 0; }
-.easa-summary { font-size: 1.15rem; font-weight: 500; background: #f0f4fa; border-radius: 8px; padding: 0.8em 1.2em; margin-bottom: 1em; }
-.easa-alert { color: #b30000; background: #fbe8e7; font-size: 1rem; font-weight: 500; padding: 0.4em 1em; border-radius: 7px; margin-bottom: 6px; border-left: 4px solid #c1272d; }
-.easa-table { background: #fff; border-radius: 10px; box-shadow: 0 2px 12px #0001; margin-bottom: 20px; width: 100%; }
-.easa-table th, .easa-table td { font-size: 1.07rem; padding: 0.7em 0.8em; }
-.easa-table th { background: #f5f8fb; color: #195ba6; font-weight: 600; }
-.easa-table tr:not(:last-child) td { border-bottom: 1px solid #e5e8ee; }
-.easa-limit-ok { color: #2c7c1a; font-weight:600; }
-.easa-limit-warn { color: #ff9000; font-weight:600; }
-.easa-limit-bad { color: #b30000; font-weight:600; }
-.site-copyright { font-size: 0.93rem; color: #888; text-align: center; margin-top: 40px; margin-bottom: 10px; }
-.required-field {color:#b30000;font-weight:bold;}
-.info-fab-real {
-    position: fixed; right: 24px; bottom: 24px; z-index: 9999;
-    background: #195ba6; color: #fff; width: 54px; height: 54px;
-    border-radius: 50%; box-shadow: 0 4px 16px #195ba652;
-    border: none; font-size: 2.15rem; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-}
-.info-fab-real:hover { background: #165090; }
-.modal-overlay-real {
-    position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;
-    background: rgba(0,0,0,0.21); z-index: 9998;
-}
-.info-modal-real {
-    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
-    background: #f4f8fc; color: #232323;
-    border-radius: 18px; box-shadow: 0 4px 24px #0002;
-    padding: 2.1em 2em 1.1em 2em; max-width: 370px; min-width: 290px;
-    z-index: 10000; font-size: 1.05rem; border: 1px solid #195ba625;
-}
-.info-modal-close-real {
-    position: absolute; right: 16px; top: 13px; font-size: 1.3rem; color: #666;
-    background: none; border: none; cursor:pointer;
-}
-.legend-dot { display: inline-block; width: 15px; height: 15px; border-radius: 50%; margin-right: 7px; }
-.legend-ok { background: #2c7c1a;}
-.legend-warn { background: #ff9000;}
-.legend-bad { background: #b30000;}
-</style>
-""", unsafe_allow_html=True)
+def inject_css():
+    st.markdown("""
+        <style>
+        html, body, [class*="css"]  { font-family: 'Segoe UI', Arial, Helvetica, sans-serif; }
+        body, .stApp, .block-container { background: #fff !important; color: #222 !important; }
+        [data-testid="stAppViewContainer"] { background: #fff !important; }
+        .easa-header {font-size: 2.7rem; font-weight: 700; color: #195ba6; letter-spacing: 2px; margin-bottom: 0.5rem;}
+        .easa-section-title { font-size: 1.28rem; font-weight: 600; color: #195ba6; margin: 1.5rem 0 0.7rem 0; }
+        .easa-summary { font-size: 1.15rem; font-weight: 500; background: #f0f4fa; border-radius: 8px; padding: 0.8em 1.2em; margin-bottom: 1em; }
+        .easa-alert { color: #b30000; background: #fbe8e7; font-size: 1rem; font-weight: 500; padding: 0.4em 1em; border-radius: 7px; margin-bottom: 6px; border-left: 4px solid #c1272d; }
+        .easa-table { background: #fff; border-radius: 10px; box-shadow: 0 2px 12px #0001; margin-bottom: 20px; width: 100%; }
+        .easa-table th, .easa-table td { font-size: 1.07rem; padding: 0.7em 0.8em; }
+        .easa-table th { background: #f5f8fb; color: #195ba6; font-weight: 600; }
+        .easa-table tr:not(:last-child) td { border-bottom: 1px solid #e5e8ee; }
+        .easa-limit-ok { color: #2c7c1a; font-weight:600; }
+        .easa-limit-warn { color: #ff9000; font-weight:600; }
+        .easa-limit-bad { color: #b30000; font-weight:600; }
+        .easa-label { font-size: 0.97rem; color: #144377; }
+        .stDownloadButton { margin-top: 15px !important; }
+        .easa-pdf-footer { font-size:9px;color:#195ba6;opacity:0.85; }
+        .required-field {color:#b30000;font-weight:bold;}
+        .site-copyright { font-size: 0.93rem; color: #888; text-align: center; margin-top: 44px; margin-bottom: 6px; }
+        .contact-link { color: #195ba6; font-size: 1rem; text-decoration: underline; cursor:pointer; margin-top:10px; margin-bottom:4px; display:block; text-align:center; }
+        .contact-link:hover { color: #113972; }
+        .contact-box { background: #f8fafd; padding: 1.3em 1.2em 1.1em 1.2em; border-radius: 11px; border: 1.5px solid #dbe3ef; margin: 0 auto 14px auto; max-width: 410px;}
+        </style>
+    """, unsafe_allow_html=True)
+inject_css()
 
-# ------------- MODAL STATE HANDLING -------------
-if "show_info_modal_real" not in st.session_state:
-    st.session_state["show_info_modal_real"] = False
-def open_info_real():
-    st.session_state["show_info_modal_real"] = True
-def close_info_real():
-    st.session_state["show_info_modal_real"] = False
-
-# ------------- RENDER INFO ICON (real button, not HTML/JS) -------------
-info_btn_placeholder = st.empty()
-info_btn_placeholder.markdown(
-    """
-    <div style="position: fixed; right: 24px; bottom: 24px; z-index: 9999;">
-        <form action="" method="post">
-            <button class="info-fab-real" type="submit" name="info_real" style="border:none;">ℹ️</button>
-        </form>
-    </div>
-    """, unsafe_allow_html=True
-)
-# Botão visível e clicável
-if st.experimental_get_query_params().get("info_real") or st.session_state["show_info_modal_real"]:
-    st.session_state["show_info_modal_real"] = True
-
-if st.button("ℹ️", help="Information / Contact Admin", key="real_info_btn_streamlit", on_click=open_info_real):
-    pass
-
-# ------------- RENDER MODAL IF NEEDED -------------
-if st.session_state["show_info_modal_real"]:
-    st.markdown('<div class="modal-overlay-real"></div>', unsafe_allow_html=True)
-    modal_content = st.container()
-    with modal_content:
-        st.markdown('<div class="info-modal-real">', unsafe_allow_html=True)
-        st.markdown('<button class="info-modal-close-real" onClick="window.location.reload();">×</button>', unsafe_allow_html=True)
-        st.markdown("""
-        <b>How does it work?</b>
-        <ul style='margin-bottom:0.5em;'>
-        <li>Fill in the weights, empty moment, and select fuel mode.</li>
-        <li>Color code indicates your result status:</li>
-        </ul>
-        <div>
-            <span class="legend-dot legend-ok"></span> <b>Green</b>: within limits<br>
-            <span class="legend-dot legend-warn"></span> <b>Orange</b>: near limit<br>
-            <span class="legend-dot legend-bad"></span> <b>Red</b>: outside legal/safe limit
-        </div>
-        <hr style="margin:1.1em 0 0.8em 0;">
-        """, unsafe_allow_html=True)
-        with st.form("contact_admin_form_real"):
-            st.markdown("<b>Contact administrator / Suggestion / Bug</b>", unsafe_allow_html=True)
-            sug_name = st.text_input("Your name", value="", key="modal_nome_real")
-            sug_email = st.text_input("Your email (optional)", value="", key="modal_email_real")
-            sug_msg = st.text_area("Message", height=60, max_chars=900, key="modal_msg_real")
-            send_btn, close_btn = st.columns(2)
-            send = send_btn.form_submit_button("Send")
-            close = close_btn.form_submit_button("Close")
-            sent = False
-            if send:
-                if not sug_msg.strip():
-                    st.warning("Please write your message before sending.")
-                else:
-                    html_body = f"""
-                    <html>
-                    <body>
-                        <h2>Suggestion, bug, or message via Mass & Balance</h2>
-                        <table style='border-collapse:collapse;'>
-                            <tr><th align='left'>Name</th><td>{sug_name}</td></tr>
-                            <tr><th align='left'>Email</th><td>{sug_email}</td></tr>
-                        </table>
-                        <p style='margin-top:1.2em;'><b>Message:</b><br>{sug_msg}</p>
-                    </body>
-                    </html>
-                    """
-                    data = {
-                        "personalizations": [
-                            {
-                                "to": [{"email": ADMIN_EMAIL}],
-                                "subject": "Suggestion/Bug/Contact from Mass & Balance site"
-                            }
-                        ],
-                        "from": {"email": "alexandre.moiteiro@gmail.com"},
-                        "content": [
-                            {
-                                "type": "text/html",
-                                "value": html_body
-                            }
-                        ]
-                    }
-                    headers = {
-                        "Authorization": f"Bearer {SENDGRID_API_KEY}",
-                        "Content-Type": "application/json"
-                    }
-                    requests.post("https://api.sendgrid.com/v3/mail/send", data=json.dumps(data), headers=headers)
-                    st.success("Message sent successfully! Thank you for your feedback.")
-                    sent = True
-            if close or sent:
-                close_info_real()
-        st.markdown('</div>', unsafe_allow_html=True)
-
-# -- AIRCRAFT DATA --
+# -- AIRCRAFT data (expandable in future) --
 aircraft_data = {
     "Tecnam P2008": {
         "fuel_arm": 2.209,
@@ -241,13 +125,12 @@ def colorize(text, class_, bold=True):
 def utc_now():
     return datetime.datetime.now(pytz.UTC)
 
-# -- SIDEBAR SELECTBOX WITH "MORE AIRCRAFT" OPTION --
 with st.sidebar:
     st.markdown('<span class="easa-header">Mass & Balance</span>', unsafe_allow_html=True)
-    aircraft_options = list(aircraft_data.keys()) + ["More aircraft coming soon..."]
-    aircraft = st.selectbox("Aircraft type", aircraft_options, index=0)
-    if aircraft == "More aircraft coming soon...":
-        st.info("More aircraft will be available soon. Only Tecnam P2008 is available at the moment.")
+    aircrafts = list(aircraft_data.keys()) + ["More aircraft coming soon..."]
+    aircraft = st.selectbox("Aircraft type", aircrafts, index=0)
+    if aircraft not in aircraft_data:
+        st.info("Only Tecnam P2008 is available right now. More aircraft coming soon!")
         st.stop()
     ac = aircraft_data[aircraft]
     icon_path = icons.get(aircraft)
@@ -502,6 +385,40 @@ def email_pdf_to_admin(pdf_path, subject, pilot_name, registration, mission_numb
     }
     requests.post("https://api.sendgrid.com/v3/mail/send", data=json.dumps(data), headers=headers)
 
+def send_suggestion_email(name, email, msg):
+    html_body = f"""
+    <html>
+    <body>
+        <h2>Suggestion, bug, or message via Mass & Balance</h2>
+        <table style='border-collapse:collapse;'>
+            <tr><th align='left'>Name</th><td>{name}</td></tr>
+            <tr><th align='left'>Email</th><td>{email}</td></tr>
+        </table>
+        <p style='margin-top:1.2em;'><b>Message:</b><br>{msg}</p>
+    </body>
+    </html>
+    """
+    data = {
+        "personalizations": [
+            {
+                "to": [{"email": ADMIN_EMAIL}],
+                "subject": "Suggestion/Bug/Contact from Mass & Balance site"
+            }
+        ],
+        "from": {"email": "alexandre.moiteiro@gmail.com"},
+        "content": [
+            {
+                "type": "text/html",
+                "value": html_body
+            }
+        ]
+    }
+    headers = {
+        "Authorization": f"Bearer {SENDGRID_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    requests.post("https://api.sendgrid.com/v3/mail/send", data=json.dumps(data), headers=headers)
+
 # ----------- PDF REPORT -----------
 st.markdown('<div class="easa-section-title">PDF Report</div>', unsafe_allow_html=True)
 with st.expander("Generate PDF report", expanded=False):
@@ -538,7 +455,18 @@ with st.expander("Generate PDF report", expanded=False):
         except Exception as e:
             print("Email failed:", e)
 
-# ---------- COPYRIGHT ----------
+# ---------- COPYRIGHT & CONTACT ----------
 st.markdown('<div class="site-copyright">Site developed by Alexandre Moiteiro. All rights reserved.</div>', unsafe_allow_html=True)
 
-
+with st.expander("Contact administrator / Suggestion / Bug", expanded=False):
+    st.markdown('<div class="contact-box">If you want to send a suggestion, report a bug or contact the site administrator, fill in below:</div>', unsafe_allow_html=True)
+    sug_name = st.text_input("Your name", value="", key="sug_nome_footer")
+    sug_email = st.text_input("Your email (optional)", value="", key="sug_email_footer")
+    sug_msg = st.text_area("Message", height=70, max_chars=900, key="sug_msg_footer")
+    sug_send = st.button("Send message", key="sug_btn_footer")
+    if sug_send:
+        if not sug_msg.strip():
+            st.warning("Please write your message before sending.")
+        else:
+            send_suggestion_email(sug_name, sug_email, sug_msg)
+            st.success("Message sent successfully! Thank you for your feedback.")
