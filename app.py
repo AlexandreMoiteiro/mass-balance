@@ -209,13 +209,40 @@ if ac['cg_limits']:
 
 # ====== MASS & BALANCE TABLE (visual cockpit) ======
 st.markdown("### Mass & Balance Table")
-def cockpit_table(items, units_wt, units_arm):
-    table = "| Item | Weight ({}) | Arm ({}) | Moment ({}·{}) |\n|:----|----:|----:|----:|\n".format(
-        units_wt, units_arm, units_wt, units_arm
-    )
+
+def cockpit_table_html(items, units_wt, units_arm):
+    # CSS para cockpit, full-width, colunas fixas e texto alinhado
+    css = """
+    <style>
+    .cockpit-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+        margin-bottom: 14px;
+    }
+    .cockpit-table th, .cockpit-table td {
+        border: 1px solid #bbb;
+        padding: 7px 0 7px 0;
+        text-align: center;
+        font-family: monospace;
+        font-size: 16px;
+    }
+    .cockpit-table th {
+        background: #eee;
+        font-weight: bold;
+    }
+    .cockpit-table td:first-child, .cockpit-table th:first-child {
+        text-align: left;
+        padding-left: 10px;
+    }
+    </style>
+    """
+    table = '<table class="cockpit-table">'
+    table += f"<tr><th>Item</th><th>Weight ({units_wt})</th><th>Arm ({units_arm})</th><th>Moment ({units_wt}·{units_arm})</th></tr>"
     for i in items:
-        table += "| {} | {:.2f} | {:.3f} | {:.2f} |\n".format(i[0], i[1], i[2], i[3])
-    return table
+        table += f"<tr><td>{i[0]}</td><td>{i[1]:.2f}</td><td>{i[2]:.3f}</td><td>{i[3]:.2f}</td></tr>"
+    table += "</table>"
+    return css + table
 
 if isinstance(ac['baggage_arm'], list):
     items = [
@@ -232,7 +259,8 @@ else:
         ("Baggage", bag1, ac['baggage_arm'], m_bag1),
         ("Fuel", fuel_weight, ac['fuel_arm'], m_fuel),
     ]
-st.markdown(cockpit_table(items, units_wt, units_arm))
+
+st.markdown(cockpit_table_html(items, units_wt, units_arm), unsafe_allow_html=True)
 
 # ====== SUMMARY & ALERTS (Cockpit visible, médios) ======
 fuel_str = (
