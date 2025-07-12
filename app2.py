@@ -4,59 +4,57 @@ import datetime
 import pytz
 from pathlib import Path
 
-# ---- Set Modern Theme ----
+# Minimal theme config
 st.set_page_config(
     page_title="Mass & Balance Planner",
     page_icon="✈️",
     layout="wide"
 )
 
-# ---- Custom Aviation-Inspired CSS ----
+# Minimal, super-clean CSS
 st.markdown("""
     <style>
         html, body, [class*="st-"] {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            background: #f5f7fa;
+            font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+            background: #fafbfc;
         }
         .main-title {
             text-align: center;
-            font-size: 2.5em;
-            color: #184187;
+            font-size: 2.3em;
+            color: #183a6d;
             font-weight: 800;
-            margin-top: 0.3em;
-            margin-bottom: 0.1em;
-            letter-spacing: -1px;
+            margin-top: 0.5em;
+            margin-bottom: 0.2em;
+            letter-spacing: -0.5px;
         }
         .subtitle {
             text-align: center;
-            font-size: 1.16em;
-            color: #1a202c;
-            margin-bottom: 2em;
+            font-size: 1.04em;
+            color: #3d485a;
+            margin-bottom: 2.3em;
             font-weight: 400;
-            letter-spacing: 0.3px;
         }
         .cockpit-table {
             width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
+            border-collapse: collapse;
             border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 18px 0 rgba(24, 65, 135, 0.08);
             background: #fff;
+            box-shadow: 0 3px 18px 0 rgba(24,65,135,0.04);
         }
         .cockpit-table th {
-            background: linear-gradient(90deg,#184187 95%,#244e9b 100%);
+            background: #183a6d;
             color: #fff;
             font-weight: 600;
             border: none;
+            padding: 13px 0;
+            font-size: 1.06em;
         }
-        .cockpit-table th, .cockpit-table td {
-            border-bottom: 1px solid #e3e9f0;
-            padding: 12px 0;
+        .cockpit-table td {
+            border: none;
+            padding: 13px 0;
             text-align: center;
-        }
-        .cockpit-table tr:last-child td {
-            border-bottom: none;
+            font-size: 1.03em;
+            color: #2b3240;
         }
         .cockpit-table tr:nth-child(even) {
             background: #f5f7fa;
@@ -64,50 +62,47 @@ st.markdown("""
         .cockpit-table td:first-child {
             text-align: left;
             padding-left: 20px;
+            font-weight: 500;
         }
-        .alert {
-            color: #d23232;
-            font-size: 1.13em;
-            font-weight: 600;
-            margin-top: 8px;
-        }
-        .info {
-            color: #184187;
-            font-weight: 600;
-        }
-        .stButton>button {
-            background: #184187;
+        .stButton>button, .stDownloadButton>button {
+            background: #183a6d;
             color: #fff;
             font-weight: 600;
             border-radius: 7px;
-            padding: 0.5em 2em;
+            padding: 0.6em 1.8em;
             border: none;
-            box-shadow: 0 2px 8px #244e9b12;
-            transition: 0.15s all;
+            box-shadow: 0 2px 8px #183a6d16;
+            font-size: 1.04em;
         }
-        .stButton>button:hover {
-            background: #244e9b;
+        .stButton>button:hover, .stDownloadButton>button:hover {
+            background: #22488c;
             color: #fff;
-        }
-        .stDownloadButton>button {
-            background: #e8870f;
-            color: #fff;
-            font-weight: 600;
-            border-radius: 7px;
-            padding: 0.5em 2em;
-            border: none;
-        }
-        .stDownloadButton>button:hover {
-            background: #184187;
         }
         .stSidebar {
-            background: linear-gradient(160deg,#f5f7fa 50%,#e9f0fa 100%);
-            border-right: 1px solid #e3e9f0;
+            background: #f6f8fa;
+            border-right: none;
         }
-        hr {
-            border: 0;
-            border-top: 1px solid #e3e9f0;
-            margin: 2em 0;
+        .info {
+            color: #183a6d;
+            font-weight: 500;
+        }
+        .alert {
+            color: #d33;
+            font-size: 1.09em;
+            font-weight: 600;
+            margin-top: 8px;
+            background: #fff8f8;
+            border-radius: 7px;
+            padding: 7px 16px;
+        }
+        .credit-tiny {
+            display: block;
+            text-align: center;
+            color: #adb4be;
+            font-size: 0.92em;
+            margin: 40px 0 10px 0;
+            letter-spacing: 0.05em;
+            user-select: none;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -154,17 +149,17 @@ def colorize(text, color, bold=True):
     return f"<span style='{style}'>{text}</span>"
 
 def get_color(val, limit):
-    if limit is None: return "#555"
+    if limit is None: return "#444"
     if val > limit: return "#d23232"
     elif val > (limit * 0.97): return "#e8870f"
-    else: return "#184187"
+    else: return "#183a6d"
 
 def get_cg_color(cg, limits):
-    if not limits: return "#555"
+    if not limits: return "#444"
     mn, mx = limits; margin = (mx - mn) * 0.06
     if cg < mn or cg > mx: return "#d23232"
     elif cg < mn + margin or cg > mx - margin: return "#e8870f"
-    else: return "#184187"
+    else: return "#183a6d"
 
 def utc_now():
     return datetime.datetime.now(pytz.UTC)
@@ -174,9 +169,6 @@ with st.sidebar:
     st.title("Aircraft")
     aircraft = st.selectbox("Type", list(aircraft_data.keys()))
     ac = aircraft_data[aircraft]
-    icon_path = icons.get(aircraft)
-    if icon_path and Path(icon_path).exists():
-        st.image(icon_path, width=160)
     st.markdown("**Operational Limits:**")
     st.info(get_limits_text(ac))
     afm_path = afm_files.get(aircraft)
@@ -186,7 +178,7 @@ with st.sidebar:
 
 # ---- Main Title ----
 st.markdown(f"<div class='main-title'>{aircraft} Mass & Balance Planner</div>", unsafe_allow_html=True)
-st.markdown(f"<div class='subtitle'>A modern, aviation-grade mass & balance calculator for small aircraft</div>", unsafe_allow_html=True)
+st.markdown(f"<div class='subtitle'>Minimal, clean and modern mass & balance tool for small aircraft</div>", unsafe_allow_html=True)
 
 # ---- Inputs ----
 fuel_mode = st.radio("Fuel Mode", ["Automatic maximum fuel (default)", "Manual fuel volume"], horizontal=True)
@@ -257,7 +249,6 @@ if ac['cg_limits']:
     if cg < mn or cg > mx: alert_list.append("CG outside safe envelope!")
 
 # ---- Cockpit Table ----
-st.markdown("#### Mass & Balance Table")
 def cockpit_table_html(items, units_wt, units_arm):
     table = '<table class="cockpit-table">'
     table += (
@@ -288,6 +279,7 @@ else:
         ("Baggage", bag1, ac['baggage_arm'], m_bag1),
         ("Fuel", fuel_weight, ac['fuel_arm'], m_fuel),
     ]
+st.markdown("#### Mass & Balance Summary")
 st.markdown(cockpit_table_html(items, ac['units']['weight'], ac['units']['arm']), unsafe_allow_html=True)
 
 # ---- Summary and Alerts ----
@@ -304,7 +296,7 @@ if ac['cg_limits']:
     )
 st.markdown(summary_str, unsafe_allow_html=True)
 if alert_list:
-    st.error("\n".join(alert_list))
+    st.markdown(f"<div class='alert'>{'<br>'.join(alert_list)}</div>", unsafe_allow_html=True)
 
 # ---- PDF Export ----
 def generate_pdf(aircraft, registration, mission_number, flight_datetime_utc,
@@ -313,39 +305,37 @@ def generate_pdf(aircraft, registration, mission_number, flight_datetime_utc,
                  total_weight, total_moment, cg, ac, fuel_limit_by, alert_list, baggage_sum):
     pdf = FPDF()
     pdf.add_page()
-    # --- Header bar with blue fill ---
-    pdf.set_fill_color(24,65,135)
-    pdf.set_text_color(255,255,255)
-    pdf.set_font("Arial", 'B', 18)
-    pdf.cell(0, 14, " MASS & BALANCE REPORT ", ln=True, align='C', fill=True)
+    # Minimal header
+    pdf.set_font("Arial", 'B', 16)
+    pdf.set_text_color(24,58,109)
+    pdf.cell(0, 10, "Mass & Balance Report", ln=True, align='C')
     pdf.ln(2)
-    # --- Info section ---
-    pdf.set_font("Arial", '', 12)
-    pdf.set_text_color(30,30,30)
+    pdf.set_font("Arial", '', 11)
+    pdf.set_text_color(70,70,70)
     pdf.cell(0, 8, f"Aircraft: {aircraft} ({registration})", ln=True)
     pdf.cell(0, 8, f"Mission Number: {mission_number}", ln=True)
     pdf.cell(0, 8, f"Flight (UTC): {flight_datetime_utc}", ln=True)
     pdf.cell(0, 8, "Operator: [Your Club/School]", ln=True)
-    pdf.ln(4)
-    # --- Operational limits ---
-    pdf.set_font("Arial", 'B', 12)
-    pdf.set_text_color(24,65,135)
+    pdf.ln(2)
+    # Limits
+    pdf.set_font("Arial", 'B', 11)
+    pdf.set_text_color(24,58,109)
     pdf.cell(0, 8, "Operational Limits:", ln=True)
-    pdf.set_font("Arial", '', 11)
-    pdf.set_text_color(30,30,30)
+    pdf.set_font("Arial", '', 10)
+    pdf.set_text_color(60,60,60)
     for line in get_limits_text(ac).split('\n'):
         pdf.cell(0, 6, line, ln=True)
-    pdf.ln(4)
-    # --- Table ---
-    pdf.set_font("Arial", 'B', 12)
-    col_widths = [46, 36, 34, 56]
+    pdf.ln(2)
+    # Table
+    pdf.set_font("Arial", 'B', 11)
     headers = ["Item", f"Weight ({ac['units']['weight']})", f"Arm ({ac['units']['arm']})", "Moment"]
+    col_widths = [46, 34, 32, 52]
     for h, w in zip(headers, col_widths):
         pdf.set_text_color(255,255,255)
-        pdf.set_fill_color(24,65,135)
-        pdf.cell(w, 8, h, border=1, align='C', fill=True)
+        pdf.set_fill_color(24,58,109)
+        pdf.cell(w, 8, h, border=0, align='C', fill=True)
     pdf.ln()
-    pdf.set_font("Arial", '', 11)
+    pdf.set_font("Arial", '', 10)
     pdf.set_text_color(0,0,0)
     if isinstance(ac['baggage_arm'], list):
         rows = [
@@ -364,36 +354,32 @@ def generate_pdf(aircraft, registration, mission_number, flight_datetime_utc,
         ]
     for row in rows:
         pdf.set_fill_color(255,255,255)
-        pdf.cell(col_widths[0], 8, str(row[0]), border=1)
-        pdf.cell(col_widths[1], 8, f"{row[1]:.2f}", border=1, align='C')
-        pdf.cell(col_widths[2], 8, f"{row[2]:.3f}", border=1, align='C')
-        pdf.cell(col_widths[3], 8, f"{row[3]:.2f}", border=1, align='C')
+        for v, w in zip(row, col_widths):
+            pdf.cell(w, 8, f"{v:.2f}" if isinstance(v, float) else str(v), border=0, align='C')
         pdf.ln()
     pdf.ln(2)
-    # --- Summary ---
-    pdf.set_font("Arial", 'B', 12)
-    pdf.set_text_color(24,65,135)
+    # Summary
+    pdf.set_font("Arial", 'B', 11)
+    pdf.set_text_color(24,58,109)
     fuel_str = f"Fuel: {fuel_vol:.1f} {'L' if ac['units']['weight']=='kg' else 'gal'} / {fuel_weight:.1f} {ac['units']['weight']} ({'Limited by tank' if fuel_limit_by=='Tank Capacity' else 'Limited by weight'})"
     pdf.cell(0, 8, fuel_str, ln=True)
     pdf.set_text_color(30,30,30)
+    pdf.set_font("Arial", '', 10)
     pdf.cell(0, 8, f"Total Weight: {total_weight:.2f} {ac['units']['weight']}", ln=True)
     pdf.cell(0, 8, f"Total Moment: {total_moment:.2f} {ac['units']['weight']}·{ac['units']['arm']}", ln=True)
     if ac['cg_limits']:
         pdf.cell(0, 8, f"CG: {cg:.3f} {ac['units']['arm']}", ln=True)
     pdf.ln(1)
     if alert_list:
-        pdf.set_font("Arial", 'B', 11)
+        pdf.set_font("Arial", 'B', 10)
         pdf.set_text_color(210,50,50)
         for a in list(dict.fromkeys(alert_list)):
             pdf.cell(0, 8, f"WARNING: {a}", ln=True)
-    # --- Footer (blue line + light text) ---
-    pdf.set_y(-20)
-    pdf.set_draw_color(24,65,135)
-    pdf.set_line_width(0.6)
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    # Tiny credit
+    pdf.set_y(-18)
     pdf.set_font("Arial", 'I', 8)
-    pdf.set_text_color(120,120,120)
-    pdf.cell(0, 7, "Auto-generated by Mass & Balance Planner (Aviation Edition)", ln=True, align='C')
+    pdf.set_text_color(173,180,190)
+    pdf.cell(0, 8, "Website by Your Name", ln=True, align='C')
     return pdf
 
 with st.expander("Generate PDF Report"):
@@ -414,8 +400,8 @@ with st.expander("Generate PDF Report"):
             st.download_button("Download PDF", f, file_name=pdf_file, mime="application/pdf")
         st.success("PDF generated!")
 
-# ---- END ----
-
+# ---- Minimal tiny credit at the bottom ----
+st.markdown("<span class='credit-tiny'>Website by Your Name</span>", unsafe_allow_html=True)
 
 
 
