@@ -405,7 +405,7 @@ def email_pdf_to_admin(pdf_path, subject, pilot_name, registration, mission_numb
                 "subject": subject
             }
         ],
-        "from": {"email": "noreply@mass-balance.streamlit.app"},
+        "from": {"email": "alexandre.moiteiro@gmail.com"},
         "content": [
             {
                 "type": "text/plain",
