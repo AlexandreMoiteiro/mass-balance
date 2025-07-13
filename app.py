@@ -37,7 +37,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- FORCE LIGHT MODE ONLY ---
+# --- FORCE LIGHT MODE AND CLEAN UI ---
 def inject_css():
     st.markdown("""
     <style>
@@ -63,11 +63,19 @@ def inject_css():
         text-transform: uppercase;
         background: #f6f7fa !important;
     }
+    .easa-card {
+        background: #fff;
+        border: 1.5px solid #e5e7ec;
+        padding: 28px 32px 20px 32px;
+        border-radius: 0;
+        box-shadow: none;
+        margin-bottom: 25px;
+    }
     .easa-limits {
         font-size: 0.97rem;
         color: #292e38;
-        margin-bottom: 13px;
-        padding: 4px 0 6px 0;
+        margin-bottom: 11px;
+        padding: 4px 0 5px 0;
     }
     .easa-limits ul {margin-bottom:0; margin-top:0;}
     .easa-limits li {
@@ -76,21 +84,12 @@ def inject_css():
         list-style-type: disc;
         margin-left: 1.2em;
     }
-    .easa-input-panel {
-        background: #fff;
-        border-right: 1.5px solid #e5e7ec;
-        padding: 26px 32px 8px 16px;
-        height: 100%;
-        box-shadow:none;
-        border-radius:0;
-    }
-    .easa-section {
-        background: #fff;
-        border-radius: 0;
-        padding: 28px 32px 18px 32px;
-        margin-bottom: 23px;
-        border: 1px solid #e5e7ec;
-        box-shadow:none;
+    .easa-aircraft-icon {
+        display: block;
+        margin: 7px 0 16px 0;
+        height: 56px;
+        width: auto;
+        filter: grayscale(0.15) contrast(1.07);
     }
     .easa-table {
         border-collapse: collapse;
@@ -112,6 +111,7 @@ def inject_css():
         background: #f2f4f7; 
         font-weight: 600;
         border-top: 1px solid #e6e7ec;
+        font-size: 0.95rem;
     }
     .easa-table tr:last-child td { border-bottom: none; }
     .easa-table td:last-child, .easa-table th:last-child { border-right:none;}
@@ -133,14 +133,7 @@ def inject_css():
         margin-bottom: 13px;
         margin-top: 9px;
     }
-    .easa-aircraft-icon {
-        display: block;
-        margin: 7px 0 16px 0;
-        height: 56px;
-        width: auto;
-        filter: grayscale(0.15) contrast(1.07);
-    }
-    .easa-pdf-section {margin-top:24px;}
+    .easa-pdf-section {margin-top:20px;}
     .stDownloadButton {margin-top:11px;}
     .easa-contact-panel {margin:44px auto 0 auto; max-width:370px; background:#f8fafd;padding:18px 20px 6px 20px; border:1px solid #e5e7ec;}
     .footer {margin-top:46px;font-size:0.96rem;color:#a0a8b6;text-align:center;}
@@ -168,7 +161,6 @@ aircraft_data = {
     }
 }
 aircrafts_select = list(aircraft_data.keys()) + ["More aircraft coming soon..."]
-icons = {k: v["icon"] for k, v in aircraft_data.items()}
 afm_files = {
     "Tecnam P2008": "Tecnam_P2008_AFM.pdf"
 }
@@ -206,11 +198,12 @@ def utc_now():
 # --- Layout ---
 st.markdown(f'<div class="easa-header">Mass & Balance Calculation Tool</div>', unsafe_allow_html=True)
 
-cols = st.columns([0.46, 0.04, 0.5], gap="large")
+cols = st.columns([0.47, 0.06, 0.47], gap="large")
 
 with cols[0]:
-    st.markdown('<div class="easa-input-panel">', unsafe_allow_html=True)
-    st.markdown("### Aircraft Selection")
+    st.markdown('<div class="easa-card">', unsafe_allow_html=True)
+    # Aircraft selection and icon
+    st.markdown("#### Aircraft Selection")
     aircraft = st.selectbox(
         "Aircraft type",
         aircrafts_select,
@@ -219,19 +212,19 @@ with cols[0]:
     )
     if aircraft not in aircraft_data:
         st.info("More aircraft will be available soon.")
+        st.markdown('</div>', unsafe_allow_html=True)
         st.stop()
     ac = aircraft_data[aircraft]
-    # --- Aircraft icon
     if "icon" in ac and ac["icon"]:
-        st.image(ac["icon"], output_format="auto", use_container_width=True, caption=None, clamp=False)
-
+        st.image(ac["icon"], output_format="auto", use_container_width=True)
     afm_path = afm_files.get(aircraft)
     st.markdown('<div class="easa-limits"><ul>' + "".join([f"<li>{x}</li>" for x in get_limits_text(ac)]) + '</ul></div>', unsafe_allow_html=True)
     if afm_path and Path(afm_path).exists():
         with open(afm_path, "rb") as f:
             st.download_button("AFM Document", f, file_name=afm_path, mime="application/pdf")
+
+    st.markdown("#### Input Masses")
     with st.form("input_form"):
-        st.markdown("### Input Masses")
         ew = st.number_input("Empty Weight", min_value=0.0, value=0.0, step=1.0, key="ew")
         ew_moment = st.number_input("Empty Weight Moment", min_value=0.0, value=0.0, step=1.0, key="ew_moment")
         ew_arm = ew_moment / ew if ew > 0 else 0.0
@@ -293,10 +286,9 @@ if ac['cg_limits']:
         alert_list.append("CG outside safe envelope.")
 
 with cols[2]:
-    st.markdown('<div class="easa-section">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Calculation Summary</div>', unsafe_allow_html=True)
+    st.markdown('<div class="easa-card">', unsafe_allow_html=True)
+    st.markdown('#### Calculation Summary')
     st.markdown('<div class="easa-summary">', unsafe_allow_html=True)
-    # Show fuel mode explanation and "limited by"
     if fuel_mode == "Auto max fuel":
         st.markdown(
             f'<div class="easa-summary-row">'
@@ -316,8 +308,7 @@ with cols[2]:
         st.markdown(f'<div class="easa-alert">{a}</div>', unsafe_allow_html=True)
 
     # --- Mass & Balance Table ---
-    st.markdown('<div style="height:13px;"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-title" style="margin-bottom:8px;">Mass & Balance Table</div>', unsafe_allow_html=True)
+    st.markdown('#### Mass & Balance Table')
     items = [
         ("Empty Weight", ew, ew_arm, m_empty),
         ("Pilot & Passenger", pilot, ac['pilot_arm'], m_pilot),
@@ -339,11 +330,9 @@ with cols[2]:
         table += "</table>"
         return table
     st.markdown(mb_table(items, units_wt, units_arm), unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # --- PDF GENERATION ---
-    st.markdown('<div class="easa-section easa-pdf-section">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">PDF Report</div>', unsafe_allow_html=True)
+    st.markdown('#### PDF Report')
     with st.expander("Generate PDF report", expanded=False):
         pilot_name = st.text_input('Pilot name / Prepared by *', value="")
         registration = st.text_input("Aircraft registration", value="CS-XXX")
