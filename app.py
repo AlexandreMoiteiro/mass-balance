@@ -37,7 +37,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- LIGHT MODE / MODERN CSS ---
+# --- MODERN LIGHT CSS ---
 def inject_css():
     st.markdown("""
     <style>
@@ -62,43 +62,20 @@ def inject_css():
         padding-bottom: 7px;
         text-transform: uppercase;
     }
-    .mb-aircraft-icon {
-        display:block;
-        margin:14px auto 7px auto;
-        max-height:72px;
-        max-width:112px;
-        padding:0;
-    }
     .mb-limits {
         font-size: 0.98rem;
         color: #232b3b;
-        margin-bottom: 14px;
-        padding: 2px 0 7px 0;
+        margin-bottom: 10px;
+        padding: 2px 0 3px 0;
     }
     .mb-limits ul {
         margin: 0 0 8px 0;
-        padding-left: 22px;
+        padding-left: 20px;
     }
     .mb-limits li {
         margin-bottom: 2px;
         font-size: 0.96rem;
         list-style-type: disc;
-    }
-    .mb-input-panel {
-        background: #fff;
-        border-right: 1.5px solid #e5e7ec;
-        padding: 22px 32px 12px 16px;
-        min-height: 600px;
-        box-shadow: none;
-        border-radius: 0;
-    }
-    .mb-section {
-        background: #fff;
-        border-radius: 0;
-        padding: 28px 32px 18px 32px;
-        margin-bottom: 24px;
-        border: 1px solid #e5e7ec;
-        box-shadow: none;
     }
     .mb-table {
         border-collapse: collapse;
@@ -130,10 +107,25 @@ def inject_css():
         margin-bottom: 13px;
         margin-top: 9px;
     }
-    .mb-pdf-section {margin-top:24px;}
+    .mb-section {
+        background: #fff;
+        border-radius: 0;
+        padding: 26px 30px 17px 30px;
+        margin-bottom: 24px;
+        border: 1px solid #e5e7ec;
+        box-shadow: none;
+    }
+    .mb-pdf-section {margin-top:18px;}
     .stDownloadButton {margin-top:11px;}
-    .mb-contact-panel {margin:34px auto 0 auto; max-width:370px; background:#f8fafd;padding:16px 16px 6px 16px; border:1px solid #e5e7ec;}
-    .footer {margin-top:38px;font-size:0.96rem;color:#a0a8b6;text-align:center;}
+    .mb-contact-panel {
+        background:#f8fafd;
+        border:1px solid #e5e7ec;
+        padding:12px 12px 8px 12px;
+        border-radius: 7px;
+        margin-top: 10px;
+        box-shadow: none;
+    }
+    .footer {margin-top:32px;font-size:0.96rem;color:#a0a8b6;text-align:center;}
     .stButton>button {width:100%;}
     .st-expander {border-radius:0;}
     </style>
@@ -197,10 +189,8 @@ st.markdown(f'<div class="mb-header">Mass & Balance Planner</div>', unsafe_allow
 
 cols = st.columns([0.48, 0.02, 0.5], gap="large")
 
-# --- LEFT: Input Panel ---
+# --- LEFT: Aircraft info, limits, input form grouped at the top ---
 with cols[0]:
-    st.markdown('<div class="mb-input-panel">', unsafe_allow_html=True)
-    # Aircraft select
     aircrafts = list(aircraft_data.keys())
     options = aircrafts + ["More aircraft coming soon..."]
     aircraft = st.selectbox(
@@ -214,19 +204,24 @@ with cols[0]:
         st.stop()
     ac = aircraft_data[aircraft]
     icon_path = icons.get(aircraft)
-    if icon_path and Path(icon_path).exists():
-        st.image(icon_path, width=140)
-    # Limits
-    st.markdown(
-        '<div class="mb-limits"><ul>' +
-        "".join([f"<li>{x}</li>" for x in get_limits_text(ac)]) +
-        '</ul></div>', unsafe_allow_html=True
-    )
-    afm_path = afm_files.get(aircraft)
-    if afm_path and Path(afm_path).exists():
-        with open(afm_path, "rb") as f:
-            st.download_button("Download Aircraft Flight Manual (AFM)", f, file_name=afm_path, mime="application/pdf")
-    # Input Form
+
+    # Aircraft icon, limits, AFM download, grouped at top
+    inner_cols = st.columns([0.32, 0.68])
+    with inner_cols[0]:
+        if icon_path and Path(icon_path).exists():
+            st.image(icon_path, width=100)
+    with inner_cols[1]:
+        st.markdown(
+            '<div class="mb-limits"><ul>' +
+            "".join([f"<li>{x}</li>" for x in get_limits_text(ac)]) +
+            '</ul></div>', unsafe_allow_html=True
+        )
+        afm_path = afm_files.get(aircraft)
+        if afm_path and Path(afm_path).exists():
+            with open(afm_path, "rb") as f:
+                st.download_button("Download Aircraft Flight Manual (AFM)", f, file_name=afm_path, mime="application/pdf")
+
+    # Input Form right after
     with st.form("input_form"):
         st.markdown("### Input Masses")
         ew = st.number_input("Empty Weight", min_value=0.0, value=0.0, step=1.0, key="ew")
@@ -246,7 +241,6 @@ with cols[0]:
             fuel_vol = st.number_input("Fuel Volume (L)", min_value=0.0, value=0.0, step=1.0, key="fuel_vol")
             fuel_weight = fuel_vol * fuel_density
         st.form_submit_button("Update")
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- LOGIC ---
 fuel_density = ac['fuel_density']
@@ -488,7 +482,6 @@ with cols[2]:
 st.markdown('<div class="footer">Site developed by Alexandre Moiteiro. All rights reserved.</div>', unsafe_allow_html=True)
 with st.expander("Contact / Suggestion / Bug", expanded=False):
     st.markdown('<div class="mb-contact-panel">', unsafe_allow_html=True)
-    st.write("Send a suggestion, report a bug, or contact the administrator using the form below:")
     sug_name = st.text_input("Your name", value="", key="sug_nome_footer")
     sug_email = st.text_input("Your email (optional)", value="", key="sug_email_footer")
     sug_msg = st.text_area("Message", height=70, max_chars=900, key="sug_msg_footer")
