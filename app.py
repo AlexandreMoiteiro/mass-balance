@@ -223,7 +223,8 @@ with cols[0]:
     ac = aircraft_data[aircraft]
     # --- Aircraft icon
     if "icon" in ac and ac["icon"]:
-        st.image(ac["icon"], width=180, output_format="auto", use_column_width=False, caption=None, clamp=False)
+        st.image(ac["icon"], output_format="auto", use_container_width=True, caption=None, clamp=False)
+
     afm_path = afm_files.get(aircraft)
     st.markdown('<div class="easa-limits"><ul>' + "".join([f"<li>{x}</li>" for x in get_limits_text(ac)]) + '</ul></div>', unsafe_allow_html=True)
     if afm_path and Path(afm_path).exists():
