@@ -65,21 +65,27 @@ def inject_css():
         font-size: 0.96rem;
         list-style-type: disc;
     }
-    .mb-table {
-        border-collapse: collapse;
-        width: 100%;
-        background: inherit;
-        font-size: 0.98rem;
-        margin: 0 0 10px 0;
-        border: 1px solid var(--secondary-background-color, #e4e6ee);
-    }
-    .mb-table th, .mb-table td { padding: 6px 8px; border-bottom: 1px solid #e6e7ec;}
-    .mb-table th {
-        background: var(--secondary-background-color, #222c38);
-        color: var(--text-color, #181c22);
-        font-weight: 700;
-        border-bottom:2px solid #e6e7ec;
-    }
+.mb-table {
+    border-collapse: collapse;
+    width: 100%;
+    background: inherit;
+    font-size: 0.98rem;
+    margin: 0 0 10px 0;
+}
+.mb-table th, .mb-table td {
+    padding: 7px 8px;
+    border-bottom: 1px solid #e0e2e6;
+    background: transparent;
+}
+.mb-table th {
+    color: var(--text-color, #181c22);
+    font-weight: 700;
+    border-bottom: 2px solid #cbd0d6;
+}
+.mb-table tr:last-child td { border-bottom: none; }
+.mb-table td { color: inherit; font-weight: 500; text-align:center;}
+.mb-table td:first-child {text-align:left;}
+}
     .mb-table tr:last-child td { border-bottom: none; }
     .mb-table td { color: inherit; font-weight: 500; text-align:center;}
     .mb-table td:first-child {text-align:left;}
