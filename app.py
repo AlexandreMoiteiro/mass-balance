@@ -12,7 +12,7 @@ ADMIN_EMAIL = "alexandre.moiteiro@gmail.com"
 WEBSITE_LINK = "https://mass-balance.streamlit.app/"
 SENDGRID_API_KEY = st.secrets["SENDGRID_API_KEY"]
 
-SENDER_EMAIL = "mass-balance@zohomail.eu"  # <--- novo sender!
+SENDER_EMAIL = "alexandre.moiteiro@students.sevenair.com"  # <--- novo sender!
 
 def ascii_safe(text):
     if not isinstance(text, str):
