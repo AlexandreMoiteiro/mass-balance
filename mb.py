@@ -74,7 +74,12 @@ def inject_css():
         border: 1px solid var(--secondary-background-color, #e4e6ee);
     }
     .mb-table th, .mb-table td { padding: 6px 8px; border-bottom: 1px solid #e6e7ec;}
-    .mb-table th { background: var(--secondary-background-color, #f3f4f6); color: inherit; font-weight: 700; border-bottom:2px solid #e6e7ec;}
+    .mb-table th {
+        background: var(--secondary-background-color, #222c38);
+        color: var(--text-color, #181c22);
+        font-weight: 700;
+        border-bottom:2px solid #e6e7ec;
+    }
     .mb-table tr:last-child td { border-bottom: none; }
     .mb-table td { color: inherit; font-weight: 500; text-align:center;}
     .mb-table td:first-child {text-align:left;}
@@ -239,14 +244,16 @@ with cols[0]:
 
     # Input Form right after
     with st.form("input_form"):
+        units_wt = ac['units']['weight']
+        units_arm = ac['units']['arm']
         st.markdown("### Enter Weights")
-        ew = st.number_input("Empty Weight", min_value=0.0, value=0.0, step=1.0, key="ew")
-        ew_moment = st.number_input("Empty Weight Moment", min_value=0.0, value=0.0, step=1.0, key="ew_moment")
+        ew = st.number_input(f"Empty Weight ({units_wt})", min_value=0.0, value=0.0, step=1.0, key="ew")
+        ew_moment = st.number_input(f"Empty Weight Moment ({units_wt}·{units_arm})", min_value=0.0, value=0.0, step=1.0, key="ew_moment")
         ew_arm = ew_moment / ew if ew > 0 else 0.0
-        student = st.number_input("Student Weight", min_value=0.0, value=0.0, step=1.0, key="student")
-        instructor = st.number_input("Instructor Weight", min_value=0.0, value=0.0, step=1.0, key="instructor")
+        student = st.number_input(f"Student Weight ({units_wt})", min_value=0.0, value=0.0, step=1.0, key="student")
+        instructor = st.number_input(f"Instructor Weight ({units_wt})", min_value=0.0, value=0.0, step=1.0, key="instructor")
         pilot = student + instructor
-        bag1 = st.number_input("Baggage", min_value=0.0, value=0.0, step=1.0, key="bag1")
+        bag1 = st.number_input(f"Baggage ({units_wt})", min_value=0.0, value=0.0, step=1.0, key="bag1")
         bag2 = 0.0
         fuel_mode = st.radio(
             "Fuel Input Mode",
@@ -556,7 +563,6 @@ with st.expander("Contact / Suggestion / Bug", expanded=False):
             except Exception as e:
                 st.warning(f"Failed to send message: {e}")
                 print(f"SendGrid Exception: {e}")
-
 
 
 
