@@ -12,6 +12,8 @@ ADMIN_EMAIL = "alexandre.moiteiro@gmail.com"
 WEBSITE_LINK = "https://mass-balance.streamlit.app/"
 SENDGRID_API_KEY = st.secrets["SENDGRID_API_KEY"]
 
+SENDER_EMAIL = "mass-balance@zohomail.eu"  # <--- novo sender!
+
 def ascii_safe(text):
     if not isinstance(text, str):
         return str(text)
@@ -37,7 +39,6 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- MODERN LIGHT CSS ---
 def inject_css():
     st.markdown("""
     <style>
@@ -107,7 +108,6 @@ def inject_css():
         margin-bottom: 13px;
         margin-top: 9px;
     }
-    /* MAIN SECTION - REMOVE WHITE BOX */
     .mb-section {
         background: transparent !important;
         border: none !important;
@@ -129,7 +129,6 @@ def inject_css():
     .footer {margin-top:32px;font-size:0.96rem;color:#a0a8b6;text-align:center;}
     .stButton>button {width:100%;}
     .st-expander {border-radius:0;}
-    /* BIGGER PLANE ICON, CENTERED, NO BORDER */
     .mb-aircraft-icon {
         display: flex;
         justify-content: center;
@@ -147,7 +146,6 @@ def inject_css():
         margin: auto;
         padding: 0;
         display: block;
-        /* add a subtle shadow if image is PNG transparent */
         filter: drop-shadow(0px 2px 12px #b1b3c222);
     }
     </style>
@@ -227,7 +225,6 @@ with cols[0]:
     ac = aircraft_data[aircraft]
     icon_path = icons.get(aircraft)
 
-    # Aircraft icon, limits, AFM download, grouped at top
     inner_cols = st.columns([0.01, 0.99])
     with inner_cols[1]:
         if icon_path and Path(icon_path).exists():
@@ -475,7 +472,7 @@ with cols[2]:
                                 "subject": f"Mass & Balance - {pilot_name.strip()}"
                             }
                         ],
-                        "from": {"email": "alexandre.moiteiro@gmail.com"},
+                        "from": {"email": SENDER_EMAIL},
                         "content": [
                             {
                                 "type": "text/html",
@@ -536,7 +533,7 @@ with st.expander("Contact / Suggestion / Bug", expanded=False):
                             "subject": "Suggestion/Bug/Contact from Mass & Balance site"
                         }
                     ],
-                    "from": {"email": "alexandre.moiteiro@gmail.com"},
+                    "from": {"email": SENDER_EMAIL},
                     "content": [
                         {
                             "type": "text/html",
@@ -558,6 +555,7 @@ with st.expander("Contact / Suggestion / Bug", expanded=False):
                 st.warning(f"Failed to send message: {e}")
                 print(f"SendGrid Exception: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
