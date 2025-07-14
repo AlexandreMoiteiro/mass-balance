@@ -71,17 +71,24 @@ def inject_css():
     background: inherit;
     font-size: 0.98rem;
     margin: 0 0 10px 0;
-}
-.mb-table th, .mb-table td {
-    padding: 7px 8px;
-    border: none;
-    background: transparent;
-}
 .mb-table th {
-    color: var(--text-color, #181c22);
     font-weight: 700;
     border-bottom: 2px solid #cbd0d6;
+    /* Default for light mode */
+    color: #23282f;
+    background: transparent;
 }
+/* Dark mode: força cor clara no header */
+@media (prefers-color-scheme: dark) {
+    .mb-table th {
+        color: #f6f8fa !important;
+        border-bottom: 2px solid #4c5263 !important;
+    }
+    .mb-table td {
+        color: #f6f8fa !important;
+    }
+}
+
 .mb-table td { color: inherit; font-weight: 500; text-align:center;}
 .mb-table td:first-child {text-align:left;}
 0; text-align:center;}
