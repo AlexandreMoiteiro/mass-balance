@@ -12,7 +12,7 @@ ADMIN_EMAIL = "alexandre.moiteiro@gmail.com"
 WEBSITE_LINK = "https://mass-balance.streamlit.app/"
 SENDGRID_API_KEY = st.secrets["SENDGRID_API_KEY"]
 
-SENDER_EMAIL = "alexandre.moiteiro@students.sevenair.com"  # <--- novo sender!
+SENDER_EMAIL = "alexandre.moiteiro@students.sevenair.com"  # Sender validado!
 
 def ascii_safe(text):
     if not isinstance(text, str):
@@ -137,7 +137,7 @@ def inject_css():
         width: 100%;
     }
     .mb-aircraft-icon img {
-        max-width: 180px !important;
+        max-width: 260px !important;
         width: 100% !important;
         height: auto !important;
         border: none !important;
@@ -147,6 +147,7 @@ def inject_css():
         padding: 0;
         display: block;
         filter: drop-shadow(0px 2px 12px #b1b3c222);
+        image-rendering: auto;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -248,7 +249,9 @@ with cols[0]:
         ew = st.number_input("Empty Weight", min_value=0.0, value=0.0, step=1.0, key="ew")
         ew_moment = st.number_input("Empty Weight Moment", min_value=0.0, value=0.0, step=1.0, key="ew_moment")
         ew_arm = ew_moment / ew if ew > 0 else 0.0
-        pilot = st.number_input("Pilot & Passenger", min_value=0.0, value=0.0, step=1.0, key="pilot")
+        aluno = st.number_input("Peso do Aluno", min_value=0.0, value=0.0, step=1.0, key="aluno")
+        instrutor = st.number_input("Peso do Instrutor", min_value=0.0, value=0.0, step=1.0, key="instrutor")
+        pilot = aluno + instrutor
         bag1 = st.number_input("Baggage", min_value=0.0, value=0.0, step=1.0, key="bag1")
         bag2 = 0.0
         fuel_mode = st.radio(
@@ -299,7 +302,7 @@ if total_weight > ac['max_takeoff_weight']:
 if bag1 > ac['max_baggage_weight']:
     alert_list.append("Baggage exceeds limit.")
 if ac.get("max_passenger_weight") and pilot > ac["max_passenger_weight"]:
-    alert_list.append("Pilot & Passenger exceed limit.")
+    alert_list.append("Pilot + Passenger (Aluno + Instrutor) exceed limit.")
 if ac['cg_limits']:
     mn, mx = ac['cg_limits']
     if cg < mn or cg > mx:
@@ -327,6 +330,9 @@ with cols[2]:
         st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label">Fuel</div><div class="mb-summary-val ok">{fuel_vol:.1f} L / {fuel_weight:.1f} {units_wt}<span style="color:#8c8c8c;font-size:0.97em;"> &nbsp;({limit_word})</span></div></div>', unsafe_allow_html=True)
     st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label">Total Weight</div><div class="mb-summary-val {get_color(total_weight, ac["max_takeoff_weight"])}">{total_weight:.2f} {units_wt}</div></div>', unsafe_allow_html=True)
     st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label">Total Moment</div><div class="mb-summary-val">{total_moment:.2f} {units_wt}·{units_arm}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label">Pilot + Passenger</div><div class="mb-summary-val {get_color(pilot, ac["max_passenger_weight"])}">{pilot:.2f} {units_wt}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label"> - Aluno</div><div class="mb-summary-val">{aluno:.2f} {units_wt}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label"> - Instrutor</div><div class="mb-summary-val">{instrutor:.2f} {units_wt}</div></div>', unsafe_allow_html=True)
     if ac['cg_limits']:
         st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label">CG</div><div class="mb-summary-val {get_cg_color(cg, ac["cg_limits"])}">{cg:.3f} {units_arm}</div></div>', unsafe_allow_html=True)
         st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label">CG Limits</div><div class="mb-summary-val">{ac["cg_limits"][0]:.3f} to {ac["cg_limits"][1]:.3f} {units_arm}</div></div>', unsafe_allow_html=True)
@@ -433,6 +439,9 @@ with cols[2]:
                 pdf.set_text_color(0,0,0)
                 pdf.cell(0, 6, ascii_safe(f"Total Weight: {total_weight:.2f} {ac['units']['weight']}"), ln=True)
                 pdf.cell(0, 6, ascii_safe(f"Total Moment: {total_moment:.2f} {ac['units']['weight']}·{ac['units']['arm']}"), ln=True)
+                pdf.cell(0, 6, ascii_safe(f"Pilot + Passenger: {pilot:.2f} {ac['units']['weight']}"), ln=True)
+                pdf.cell(0, 6, ascii_safe(f" - Aluno: {aluno:.2f} {ac['units']['weight']}"), ln=True)
+                pdf.cell(0, 6, ascii_safe(f" - Instrutor: {instrutor:.2f} {ac['units']['weight']}"), ln=True)
                 if ac['cg_limits']:
                     pdf.cell(0, 6, ascii_safe(f"CG: {cg:.3f} {ac['units']['arm']}"), ln=True)
                 if alert_list:
@@ -504,7 +513,6 @@ with cols[2]:
 # --- CONTACT AND FOOTER ---
 st.markdown('<div class="footer">Site developed by Alexandre Moiteiro. All rights reserved.</div>', unsafe_allow_html=True)
 with st.expander("Contact / Suggestion / Bug", expanded=False):
-    st.markdown('<div class="mb-contact-panel">', unsafe_allow_html=True)
     sug_name = st.text_input("Your name", value="", key="sug_nome_footer")
     sug_email = st.text_input("Your email (optional)", value="", key="sug_email_footer")
     sug_msg = st.text_area("Message", height=70, max_chars=900, key="sug_msg_footer")
@@ -554,7 +562,7 @@ with st.expander("Contact / Suggestion / Bug", expanded=False):
             except Exception as e:
                 st.warning(f"Failed to send message: {e}")
                 print(f"SendGrid Exception: {e}")
-    st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
