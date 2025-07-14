@@ -107,13 +107,14 @@ def inject_css():
         margin-bottom: 13px;
         margin-top: 9px;
     }
+    /* MAIN SECTION - REMOVE WHITE BOX */
     .mb-section {
-        background: #fff;
-        border-radius: 0;
-        padding: 26px 30px 17px 30px;
-        margin-bottom: 24px;
-        border: 1px solid #e5e7ec;
-        box-shadow: none;
+        background: transparent !important;
+        border: none !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin-bottom: 20px;
     }
     .mb-pdf-section {margin-top:18px;}
     .stDownloadButton {margin-top:11px;}
@@ -128,6 +129,27 @@ def inject_css():
     .footer {margin-top:32px;font-size:0.96rem;color:#a0a8b6;text-align:center;}
     .stButton>button {width:100%;}
     .st-expander {border-radius:0;}
+    /* BIGGER PLANE ICON, CENTERED, NO BORDER */
+    .mb-aircraft-icon {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 0 0 18px 0;
+        width: 100%;
+    }
+    .mb-aircraft-icon img {
+        max-width: 180px !important;
+        width: 100% !important;
+        height: auto !important;
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        margin: auto;
+        padding: 0;
+        display: block;
+        /* add a subtle shadow if image is PNG transparent */
+        filter: drop-shadow(0px 2px 12px #b1b3c222);
+    }
     </style>
     """, unsafe_allow_html=True)
 inject_css()
@@ -206,11 +228,13 @@ with cols[0]:
     icon_path = icons.get(aircraft)
 
     # Aircraft icon, limits, AFM download, grouped at top
-    inner_cols = st.columns([0.32, 0.68])
-    with inner_cols[0]:
-        if icon_path and Path(icon_path).exists():
-            st.image(icon_path, width=100)
+    inner_cols = st.columns([0.01, 0.99])
     with inner_cols[1]:
+        if icon_path and Path(icon_path).exists():
+            st.markdown(
+                f'<div class="mb-aircraft-icon"><img src="data:image/png;base64,{base64.b64encode(Path(icon_path).read_bytes()).decode()}" alt="Aircraft Icon" /></div>',
+                unsafe_allow_html=True,
+            )
         st.markdown(
             '<div class="mb-limits"><ul>' +
             "".join([f"<li>{x}</li>" for x in get_limits_text(ac)]) +
@@ -471,9 +495,11 @@ with cols[2]:
                     }
                     resp = requests.post("https://api.sendgrid.com/v3/mail/send", data=json.dumps(data), headers=headers)
                     if resp.status_code >= 400:
-                        st.warning("PDF generated but failed to send email (check SENDGRID_API_KEY and email settings).")
+                        st.warning(f"PDF generated but failed to send email (check SENDGRID_API_KEY and email settings). Error: {resp.text}")
+                        print(f"SendGrid error: {resp.text}")
                 except Exception as e:
                     st.warning(f"PDF generated but failed to send email: {e}")
+                    print(f"SendGrid Exception: {e}")
             except Exception as e:
                 st.error(f"PDF generation or email failed: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
@@ -524,12 +550,15 @@ with st.expander("Contact / Suggestion / Bug", expanded=False):
                 }
                 resp = requests.post("https://api.sendgrid.com/v3/mail/send", data=json.dumps(data), headers=headers)
                 if resp.status_code >= 400:
-                    st.warning("Message not sent (check SENDGRID_API_KEY and email settings).")
+                    st.warning(f"Message not sent (check SENDGRID_API_KEY and email settings). Error: {resp.text}")
+                    print(f"SendGrid error: {resp.text}")
                 else:
                     st.success("Message sent successfully. Thank you for your feedback.")
             except Exception as e:
                 st.warning(f"Failed to send message: {e}")
+                print(f"SendGrid Exception: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
