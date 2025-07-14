@@ -86,7 +86,7 @@ def inject_css():
     .warn { color: #d8aa22;}
     .bad { color: #c21c1c;}
     .mb-alert {
-        background: rgba(255,247,246,0.9);
+        background: var(--secondary-background-color, #fff7f6);
         border-left: 5px solid #c21c1c;
         color: #b51e14;
         font-weight: 600;
@@ -138,7 +138,6 @@ def inject_css():
     }
     </style>
     """, unsafe_allow_html=True)
-inject_css()
 
 st.set_page_config(
     page_title="Mass & Balance Planner",
@@ -146,6 +145,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+inject_css()
 
 # --- AIRCRAFT DATA ---
 aircraft_data = {
@@ -237,6 +237,7 @@ with cols[0]:
             with open(afm_path, "rb") as f:
                 st.download_button("Download Aircraft Flight Manual (AFM)", f, file_name=afm_path, mime="application/pdf")
 
+    # Input Form right after
     with st.form("input_form"):
         st.markdown("### Enter Weights")
         ew = st.number_input("Empty Weight", min_value=0.0, value=0.0, step=1.0, key="ew")
@@ -367,7 +368,6 @@ with cols[2]:
         utc_today = utc_now()
         default_datetime = utc_today.strftime("%Y-%m-%d %H:%M UTC")
         flight_datetime_utc = st.text_input("Scheduled flight date and time (UTC)", value=default_datetime)
-        # Remove duplicated UTC in PDF:
         flight_datetime_no_utc = flight_datetime_utc.replace(" UTC", "").strip()
         pilot_name_valid = bool(pilot_name.strip())
         pdf_button = st.button("Generate PDF with current values", disabled=not pilot_name_valid)
@@ -389,7 +389,7 @@ with cols[2]:
                 pdf.cell(0, 7, ascii_safe(f"{aircraft}  |  {registration}"), ln=True)
                 pdf.set_font("Arial", '', 11)
                 pdf.cell(0, 6, ascii_safe(f"Mission Number: {mission_number}"), ln=True)
-                pdf.cell(0, 6, ascii_safe(f"Flight: {flight_datetime_no_utc} UTC"), ln=True)  # Just one UTC!
+                pdf.cell(0, 6, ascii_safe(f"Flight: {flight_datetime_no_utc} UTC"), ln=True)
                 pdf.cell(0, 6, ascii_safe(f"Prepared by: {pilot_name}"), ln=True)
                 pdf.cell(0, 6, ascii_safe("Operator: Sevenair Academy"), ln=True)
                 pdf.ln(2)
@@ -549,7 +549,13 @@ with st.expander("Contact / Suggestion / Bug", expanded=False):
                 }
                 resp = requests.post("https://api.sendgrid.com/v3/mail/send", data=json.dumps(data), headers=headers)
                 if resp.status_code >= 400:
-                    st.warning(f"Message not sent
+                    st.warning(f"Message not sent (check SENDGRID_API_KEY and email settings). Error: {resp.text}")
+                    print(f"SendGrid error: {resp.text}")
+                else:
+                    st.success("Message sent successfully. Thank you for your feedback.")
+            except Exception as e:
+                st.warning(f"Failed to send message: {e}")
+                print(f"SendGrid Exception: {e}")
 
 
 
