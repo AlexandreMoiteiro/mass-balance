@@ -11,8 +11,7 @@ import unicodedata
 ADMIN_EMAIL = "alexandre.moiteiro@gmail.com"
 WEBSITE_LINK = "https://mass-balance.streamlit.app/"
 SENDGRID_API_KEY = st.secrets["SENDGRID_API_KEY"]
-
-SENDER_EMAIL = "alexandre.moiteiro@students.sevenair.com"  # Sender validado!
+SENDER_EMAIL = "alexandre.moiteiro@students.sevenair.com"
 
 def ascii_safe(text):
     if not isinstance(text, str):
@@ -245,13 +244,13 @@ with cols[0]:
 
     # Input Form right after
     with st.form("input_form"):
-        st.markdown("### Input Masses")
+        st.markdown("### Enter Weights")
         ew = st.number_input("Empty Weight", min_value=0.0, value=0.0, step=1.0, key="ew")
         ew_moment = st.number_input("Empty Weight Moment", min_value=0.0, value=0.0, step=1.0, key="ew_moment")
         ew_arm = ew_moment / ew if ew > 0 else 0.0
-        aluno = st.number_input("Peso do Aluno", min_value=0.0, value=0.0, step=1.0, key="aluno")
-        instrutor = st.number_input("Peso do Instrutor", min_value=0.0, value=0.0, step=1.0, key="instrutor")
-        pilot = aluno + instrutor
+        student = st.number_input("Student Weight", min_value=0.0, value=0.0, step=1.0, key="student")
+        instructor = st.number_input("Instructor Weight", min_value=0.0, value=0.0, step=1.0, key="instructor")
+        pilot = student + instructor
         bag1 = st.number_input("Baggage", min_value=0.0, value=0.0, step=1.0, key="bag1")
         bag2 = 0.0
         fuel_mode = st.radio(
@@ -300,9 +299,9 @@ alert_list = []
 if total_weight > ac['max_takeoff_weight']:
     alert_list.append("Total weight exceeds maximum takeoff weight.")
 if bag1 > ac['max_baggage_weight']:
-    alert_list.append("Baggage exceeds limit.")
+    alert_list.append("Baggage exceeds allowed limit.")
 if ac.get("max_passenger_weight") and pilot > ac["max_passenger_weight"]:
-    alert_list.append("Pilot + Passenger (Aluno + Instrutor) exceed limit.")
+    alert_list.append("Pilot + Passenger (student + instructor) exceed allowed limit.")
 if ac['cg_limits']:
     mn, mx = ac['cg_limits']
     if cg < mn or cg > mx:
@@ -331,15 +330,14 @@ with cols[2]:
     st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label">Total Weight</div><div class="mb-summary-val {get_color(total_weight, ac["max_takeoff_weight"])}">{total_weight:.2f} {units_wt}</div></div>', unsafe_allow_html=True)
     st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label">Total Moment</div><div class="mb-summary-val">{total_moment:.2f} {units_wt}·{units_arm}</div></div>', unsafe_allow_html=True)
     st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label">Pilot + Passenger</div><div class="mb-summary-val {get_color(pilot, ac["max_passenger_weight"])}">{pilot:.2f} {units_wt}</div></div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label"> - Aluno</div><div class="mb-summary-val">{aluno:.2f} {units_wt}</div></div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label"> - Instrutor</div><div class="mb-summary-val">{instrutor:.2f} {units_wt}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label"> - Student</div><div class="mb-summary-val">{student:.2f} {units_wt}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label"> - Instructor</div><div class="mb-summary-val">{instructor:.2f} {units_wt}</div></div>', unsafe_allow_html=True)
     if ac['cg_limits']:
         st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label">CG</div><div class="mb-summary-val {get_cg_color(cg, ac["cg_limits"])}">{cg:.3f} {units_arm}</div></div>', unsafe_allow_html=True)
         st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label">CG Limits</div><div class="mb-summary-val">{ac["cg_limits"][0]:.3f} to {ac["cg_limits"][1]:.3f} {units_arm}</div></div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
     for a in alert_list:
         st.markdown(f'<div class="mb-alert">{a}</div>', unsafe_allow_html=True)
-    # --- Mass & Balance Table ---
     st.markdown('<div style="height:10px;"></div>', unsafe_allow_html=True)
     st.markdown('<div class="section-title" style="margin-bottom:9px;">Mass & Balance Table</div>', unsafe_allow_html=True)
     items = [
@@ -375,6 +373,8 @@ with cols[2]:
         utc_today = utc_now()
         default_datetime = utc_today.strftime("%Y-%m-%d %H:%M UTC")
         flight_datetime_utc = st.text_input("Scheduled flight date and time (UTC)", value=default_datetime)
+        # Remove duplicated UTC in PDF:
+        flight_datetime_no_utc = flight_datetime_utc.replace(" UTC", "").strip()
         pilot_name_valid = bool(pilot_name.strip())
         pdf_button = st.button("Generate PDF with current values", disabled=not pilot_name_valid)
         if pdf_button and pilot_name_valid:
@@ -395,7 +395,7 @@ with cols[2]:
                 pdf.cell(0, 7, ascii_safe(f"{aircraft}  |  {registration}"), ln=True)
                 pdf.set_font("Arial", '', 11)
                 pdf.cell(0, 6, ascii_safe(f"Mission Number: {mission_number}"), ln=True)
-                pdf.cell(0, 6, ascii_safe(f"Flight (UTC): {flight_datetime_utc}"), ln=True)
+                pdf.cell(0, 6, ascii_safe(f"Flight: {flight_datetime_no_utc} UTC"), ln=True)  # Just one UTC!
                 pdf.cell(0, 6, ascii_safe(f"Prepared by: {pilot_name}"), ln=True)
                 pdf.cell(0, 6, ascii_safe("Operator: Sevenair Academy"), ln=True)
                 pdf.ln(2)
@@ -440,8 +440,8 @@ with cols[2]:
                 pdf.cell(0, 6, ascii_safe(f"Total Weight: {total_weight:.2f} {ac['units']['weight']}"), ln=True)
                 pdf.cell(0, 6, ascii_safe(f"Total Moment: {total_moment:.2f} {ac['units']['weight']}·{ac['units']['arm']}"), ln=True)
                 pdf.cell(0, 6, ascii_safe(f"Pilot + Passenger: {pilot:.2f} {ac['units']['weight']}"), ln=True)
-                pdf.cell(0, 6, ascii_safe(f" - Aluno: {aluno:.2f} {ac['units']['weight']}"), ln=True)
-                pdf.cell(0, 6, ascii_safe(f" - Instrutor: {instrutor:.2f} {ac['units']['weight']}"), ln=True)
+                pdf.cell(0, 6, ascii_safe(f" - Student: {student:.2f} {ac['units']['weight']}"), ln=True)
+                pdf.cell(0, 6, ascii_safe(f" - Instructor: {instructor:.2f} {ac['units']['weight']}"), ln=True)
                 if ac['cg_limits']:
                     pdf.cell(0, 6, ascii_safe(f"CG: {cg:.3f} {ac['units']['arm']}"), ln=True)
                 if alert_list:
@@ -467,7 +467,7 @@ with cols[2]:
                             <tr><th align='left'>Pilot</th><td>{pilot_name}</td></tr>
                             <tr><th align='left'>Aircraft</th><td>{aircraft} ({registration})</td></tr>
                             <tr><th align='left'>Mission</th><td>{mission_number}</td></tr>
-                            <tr><th align='left'>Flight (UTC)</th><td>{flight_datetime_utc}</td></tr>
+                            <tr><th align='left'>Flight (UTC)</th><td>{flight_datetime_no_utc} UTC</td></tr>
                             <tr><th align='left'>Submitted from</th><td>{WEBSITE_LINK}</td></tr>
                         </table>
                         <p style='margin-top:1.5em;'>See attached PDF for details.</p>
@@ -562,7 +562,6 @@ with st.expander("Contact / Suggestion / Bug", expanded=False):
             except Exception as e:
                 st.warning(f"Failed to send message: {e}")
                 print(f"SendGrid Exception: {e}")
-
 
 
 
