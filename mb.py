@@ -30,6 +30,11 @@ class CustomPDF(FPDF):
         )
         self.multi_cell(0, 2.8, ascii_safe(footer_text), align='C')
         self.set_text_color(0,0,0)
+st.set_page_config(
+    page_title="Mass & Balance Planner",
+    page_icon="tecnam_icon.png",  # Must be a local file and PNG format
+    layout="wide"
+)
 
 def inject_css():
     st.markdown("""
