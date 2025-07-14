@@ -74,7 +74,7 @@ def inject_css():
 }
 .mb-table th, .mb-table td {
     padding: 7px 8px;
-    border-bottom: 1px solid #e0e2e6;
+    border: none;
     background: transparent;
 }
 .mb-table th {
@@ -82,8 +82,9 @@ def inject_css():
     font-weight: 700;
     border-bottom: 2px solid #cbd0d6;
 }
-.mb-table tr:last-child td { border-bottom: none; }
 .mb-table td { color: inherit; font-weight: 500; text-align:center;}
+.mb-table td:first-child {text-align:left;}
+0; text-align:center;}
 .mb-table td:first-child {text-align:left;}
 }
     .mb-table tr:last-child td { border-bottom: none; }
