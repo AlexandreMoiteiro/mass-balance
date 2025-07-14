@@ -33,7 +33,7 @@ class CustomPDF(FPDF):
 
 st.set_page_config(
     page_title="Mass & Balance Planner",
-    page_icon="🧮",   # <-- abacus emoji
+    page_icon="</>",   # <-- abacus emoji
     layout="wide"
 )
 
