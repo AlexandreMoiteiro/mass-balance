@@ -31,32 +31,20 @@ class CustomPDF(FPDF):
         self.multi_cell(0, 2.8, ascii_safe(footer_text), align='C')
         self.set_text_color(0,0,0)
 
-st.set_page_config(
-    page_title="Mass & Balance Planner",
-    page_icon=None,
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
-
 def inject_css():
     st.markdown("""
     <style>
     html, body, [class*="css"] {
         font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
-        background: #f6f7fa !important;
-        color: #181c22;
         font-size: 15px;
         line-height: 1.58;
-    }
-    body, .main, .block-container {
-        background: #f6f7fa !important;
     }
     .block-container { max-width: 1120px !important; margin: auto; padding-top:16px;}
     .mb-header {
         font-size: 1.27rem;
         font-weight: 800;
         letter-spacing: .02em;
-        color: #1b2541;
+        color: inherit;
         border-bottom: 1px solid #e5e7ec;
         margin-bottom: 0;
         padding-bottom: 7px;
@@ -64,7 +52,7 @@ def inject_css():
     }
     .mb-limits {
         font-size: 0.98rem;
-        color: #232b3b;
+        color: inherit;
         margin-bottom: 10px;
         padding: 2px 0 3px 0;
     }
@@ -80,25 +68,25 @@ def inject_css():
     .mb-table {
         border-collapse: collapse;
         width: 100%;
-        background: #f9fafb;
+        background: inherit;
         font-size: 0.98rem;
         margin: 0 0 10px 0;
-        border: 1px solid #e4e6ee;
+        border: 1px solid var(--secondary-background-color, #e4e6ee);
     }
     .mb-table th, .mb-table td { padding: 6px 8px; border-bottom: 1px solid #e6e7ec;}
-    .mb-table th { color: #1a2546; background: #f3f4f6; font-weight: 700; border-bottom:2px solid #e6e7ec;}
+    .mb-table th { background: var(--secondary-background-color, #f3f4f6); color: inherit; font-weight: 700; border-bottom:2px solid #e6e7ec;}
     .mb-table tr:last-child td { border-bottom: none; }
-    .mb-table td { color: #181c22; font-weight: 500; text-align:center;}
+    .mb-table td { color: inherit; font-weight: 500; text-align:center;}
     .mb-table td:first-child {text-align:left;}
     .mb-summary { font-size: 1.08rem; margin-bottom: 9px;}
     .mb-summary-row { display: flex; align-items: baseline; justify-content: space-between; margin: 4px 0;}
-    .mb-summary-label { color: #232b3b;}
+    .mb-summary-label { color: inherit;}
     .mb-summary-val { font-weight: 600; letter-spacing: .02em;}
     .ok { color: #1d8533;}
     .warn { color: #d8aa22;}
     .bad { color: #c21c1c;}
     .mb-alert {
-        background: #fff7f6;
+        background: rgba(255,247,246,0.9);
         border-left: 5px solid #c21c1c;
         color: #b51e14;
         font-weight: 600;
@@ -118,14 +106,14 @@ def inject_css():
     .mb-pdf-section {margin-top:18px;}
     .stDownloadButton {margin-top:11px;}
     .mb-contact-panel {
-        background:#f8fafd;
+        background: var(--secondary-background-color, #f8fafd);
         border:1px solid #e5e7ec;
         padding:12px 12px 8px 12px;
         border-radius: 7px;
         margin-top: 10px;
         box-shadow: none;
     }
-    .footer {margin-top:32px;font-size:0.96rem;color:#a0a8b6;text-align:center;}
+    .footer {margin-top:32px;font-size:0.96rem;color:var(--text-color,#a0a8b6);text-align:center;}
     .stButton>button {width:100%;}
     .st-expander {border-radius:0;}
     .mb-aircraft-icon {
@@ -151,6 +139,13 @@ def inject_css():
     </style>
     """, unsafe_allow_html=True)
 inject_css()
+
+st.set_page_config(
+    page_title="Mass & Balance Planner",
+    page_icon=None,
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
 # --- AIRCRAFT DATA ---
 aircraft_data = {
@@ -242,7 +237,6 @@ with cols[0]:
             with open(afm_path, "rb") as f:
                 st.download_button("Download Aircraft Flight Manual (AFM)", f, file_name=afm_path, mime="application/pdf")
 
-    # Input Form right after
     with st.form("input_form"):
         st.markdown("### Enter Weights")
         ew = st.number_input("Empty Weight", min_value=0.0, value=0.0, step=1.0, key="ew")
@@ -555,14 +549,7 @@ with st.expander("Contact / Suggestion / Bug", expanded=False):
                 }
                 resp = requests.post("https://api.sendgrid.com/v3/mail/send", data=json.dumps(data), headers=headers)
                 if resp.status_code >= 400:
-                    st.warning(f"Message not sent (check SENDGRID_API_KEY and email settings). Error: {resp.text}")
-                    print(f"SendGrid error: {resp.text}")
-                else:
-                    st.success("Message sent successfully. Thank you for your feedback.")
-            except Exception as e:
-                st.warning(f"Failed to send message: {e}")
-                print(f"SendGrid Exception: {e}")
-
+                    st.warning(f"Message not sent
 
 
 
