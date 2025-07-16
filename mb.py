@@ -316,10 +316,20 @@ with cols[0]:
 st.markdown('<div class="mb-section">', unsafe_allow_html=True)
 st.markdown('<div class="section-title">Performance - Aerodrome(s)</div>', unsafe_allow_html=True)
 
-if "aerodromes" not in st.session_state:
+if "aerodromes" not in st.session_state or not isinstance(st.session_state.aerodromes, list):
     st.session_state.aerodromes = [
         {"icao": "LPCS", "elev_ft": 374.0, "qnh": 1013.0, "temp": 15.0}
     ]
+
+# GARANTE TODAS AS KEYS PARA EVITAR KeyError
+for i, a in enumerate(st.session_state.aerodromes):
+    if not isinstance(a, dict):
+        st.session_state.aerodromes[i] = {"icao": "", "elev_ft": 0.0, "qnh": 1013.0, "temp": 15.0}
+        a = st.session_state.aerodromes[i]
+    if "icao" not in a:      a["icao"] = ""
+    if "elev_ft" not in a:   a["elev_ft"] = 0.0
+    if "qnh" not in a:       a["qnh"] = 1013.0
+    if "temp" not in a:      a["temp"] = 15.0
 
 add_btn, _, remove_btn = st.columns([0.20, 0.03, 0.20], gap="small")
 
@@ -333,20 +343,18 @@ perf_outputs = []
 for idx, a in enumerate(st.session_state.aerodromes):
     with st.container():
         st.markdown(f"##### Aerodrome {idx+1}")
-        icao = st.text_input(f"ICAO code", value=a["icao"], key=f"perf_icao_{idx}", max_chars=8)
-        elev_ft = st.number_input("Elevation (ft)", min_value=-1200.0, max_value=20000.0, value=float(a["elev_ft"]), step=1.0, key=f"perf_elev_{idx}")
-        qnh = st.number_input("QNH (hPa)", min_value=900.0, max_value=1050.0, value=float(a["qnh"]), step=0.1, key=f"perf_qnh_{idx}")
-        temp = st.number_input("Temperature (°C)", min_value=-40.0, max_value=60.0, value=float(a["temp"]), step=0.1, key=f"perf_temp_{idx}")
+        icao = st.text_input(f"ICAO code", value=a.get("icao", ""), key=f"perf_icao_{idx}", max_chars=8)
+        elev_ft = st.number_input("Elevation (ft)", min_value=-1200.0, max_value=20000.0, value=float(a.get("elev_ft", 0.0)), step=1.0, key=f"perf_elev_{idx}")
+        qnh = st.number_input("QNH (hPa)", min_value=900.0, max_value=1050.0, value=float(a.get("qnh", 1013.0)), step=0.1, key=f"perf_qnh_{idx}")
+        temp = st.number_input("Temperature (°C)", min_value=-40.0, max_value=60.0, value=float(a.get("temp", 15.0)), step=0.1, key=f"perf_temp_{idx}")
 
-        # Save state
+        # Salva valores atuais
         st.session_state.aerodromes[idx]["icao"] = icao
         st.session_state.aerodromes[idx]["elev_ft"] = elev_ft
         st.session_state.aerodromes[idx]["qnh"] = qnh
         st.session_state.aerodromes[idx]["temp"] = temp
 
-        # PA (ft): PA = Elevation(ft) + [27 x (1013.25 - QNH)]
         pa_ft = elev_ft + (1013.25 - qnh) * 27
-        # DA (ft): DA = PA + [120 × (OAT - ISA temp at PA)], mas não mostrar temp ISA
         isa_temp = 15 - 2 * (pa_ft / 1000)
         da_ft = pa_ft + (120 * (temp - isa_temp))
         perf_outputs.append({
@@ -358,7 +366,6 @@ for idx, a in enumerate(st.session_state.aerodromes):
             "da_ft": da_ft
         })
 
-        # Destaque no site
         st.markdown(
             f"""
             <div class="da-pa-highlight">Pressure Altitude (PA): {pa_ft:.0f} ft</div>
@@ -367,6 +374,7 @@ for idx, a in enumerate(st.session_state.aerodromes):
         )
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 # --- LOGIC ---
 fuel_density = ac['fuel_density']
