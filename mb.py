@@ -17,12 +17,6 @@ def ascii_safe(text):
     if not isinstance(text, str):
         return str(text)
     return unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('ascii')
-    
-flight_datetime_utc = st.text_input(
-    "Scheduled flight date and time (UTC)",
-    value=default_datetime,
-    key="flight_datetime_utc"
-)
 
 def get_color(val, limit):
     if limit is None: return "ok"
@@ -435,6 +429,7 @@ with cols[2]:
         mission_number = st.text_input("Mission number", value="001")
         utc_today = utc_now()
         default_datetime = utc_today.strftime("%Y-%m-%d %H:%M UTC")
+        flight_datetime_utc = st.text_input(
         flight_datetime_utc = st.text_input("Scheduled flight date and time (UTC)", value=default_datetime, key="flight_datetime_utc")
         flight_datetime_no_utc = flight_datetime_utc.replace(" UTC", "").strip()
         pilot_name_valid = bool(pilot_name.strip())
