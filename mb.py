@@ -33,7 +33,7 @@ class CustomPDF(FPDF):
 
 st.set_page_config(
     page_title="Mass & Balance Planner",
-    page_icon="📊",   # <-- abacus emoji
+    page_icon="📊",
     layout="wide"
 )
 
@@ -71,38 +71,31 @@ def inject_css():
         font-size: 0.96rem;
         list-style-type: disc;
     }
-.mb-table {
-    border-collapse: collapse;
-    width: 100%;
-    background: inherit;
-    font-size: 0.98rem;
-    margin: 0 0 10px 0;
-.mb-table th {
-    font-weight: 700;
-    border-bottom: 2px solid #cbd0d6;
-    /* Default for light mode */
-    color: #23282f;
-    background: transparent;
-}
-/* Dark mode: força cor clara no header */
-@media (prefers-color-scheme: dark) {
+    .mb-table {
+        border-collapse: collapse;
+        width: 100%;
+        background: inherit;
+        font-size: 0.98rem;
+        margin: 0 0 10px 0;
+    }
     .mb-table th {
-        color: #f6f8fa !important;
-        border-bottom: 2px solid #4c5263 !important;
+        font-weight: 700;
+        border-bottom: 2px solid #cbd0d6;
+        color: #23282f;
+        background: transparent;
     }
-    .mb-table td {
-        color: #f6f8fa !important;
+    @media (prefers-color-scheme: dark) {
+        .mb-table th {
+            color: #f6f8fa !important;
+            border-bottom: 2px solid #4c5263 !important;
+        }
+        .mb-table td {
+            color: #f6f8fa !important;
+        }
     }
-}
-
-.mb-table td { color: inherit; font-weight: 500; text-align:center;}
-.mb-table td:first-child {text-align:left;}
-0; text-align:center;}
-.mb-table td:first-child {text-align:left;}
-}
-    .mb-table tr:last-child td { border-bottom: none; }
     .mb-table td { color: inherit; font-weight: 500; text-align:center;}
     .mb-table td:first-child {text-align:left;}
+    .mb-table tr:last-child td { border-bottom: none; }
     .mb-summary { font-size: 1.08rem; margin-bottom: 9px;}
     .mb-summary-row { display: flex; align-items: baseline; justify-content: space-between; margin: 4px 0;}
     .mb-summary-label { color: inherit;}
@@ -282,9 +275,9 @@ with cols[0]:
             help="Automatic maximum fuel (default): Fuel will be maximized as per limitations."
         )
         fuel_density = ac['fuel_density']
+        fuel_vol_manual = 0.0
         if fuel_mode == "Manual fuel volume":
-            fuel_vol = st.number_input("Fuel Volume (L)", min_value=0.0, value=0.0, step=1.0, key="fuel_vol")
-            fuel_weight = fuel_vol * fuel_density
+            fuel_vol_manual = st.number_input("Fuel Volume (L)", min_value=0.0, value=0.0, step=1.0, key="fuel_vol")
         st.form_submit_button("Update")
 
 # --- LOGIC ---
@@ -292,6 +285,7 @@ fuel_density = ac['fuel_density']
 units_wt = ac['units']['weight']
 units_arm = ac['units']['arm']
 
+# Corrigido: Definir corretamente fuel_weight e fuel_vol para cada modo
 if fuel_mode == "Automatic maximum fuel (default)":
     useful_load = ac['max_takeoff_weight'] - (ew + pilot + bag1 + bag2)
     fuel_weight_possible = max(0.0, useful_load)
@@ -305,6 +299,9 @@ if fuel_mode == "Automatic maximum fuel (default)":
         fuel_vol = ac['max_fuel_volume']
         fuel_limit_by = "Tank Capacity"
 else:
+    # Garantir que fuel_vol vem do session_state, nunca de uma variável local do form
+    fuel_vol = st.session_state.get("fuel_vol", 0.0)
+    fuel_weight = fuel_vol * fuel_density
     fuel_limit_by = "Manual Entry"
 
 m_empty = ew_moment
@@ -583,7 +580,3 @@ with st.expander("Contact / Suggestion / Bug", expanded=False):
             except Exception as e:
                 st.warning(f"Failed to send message: {e}")
                 print(f"SendGrid Exception: {e}")
-
-
-
-
