@@ -31,48 +31,22 @@ class CustomPDF(FPDF):
         self.multi_cell(0, 2.8, ascii_safe(footer_text), align='C')
         self.set_text_color(0,0,0)
 
-def get_color(val, limit):
-    if limit is None: return "ok"
-    if val > limit:
-        return "bad"
-    elif val > (limit * 0.95):
-        return "warn"
-    else:
-        return "ok"
-def get_cg_color(cg, limits):
-    if not limits: return "ok"
-    mn, mx = limits
-    margin = (mx - mn) * 0.05
-    if cg < mn or cg > mx:
-        return "bad"
-    elif cg < mn + margin or cg > mx - margin:
-        return "warn"
-    else:
-        return "ok"
-
-def color_rgb(code):
-    # For PDF color (tuple: R,G,B)
-    if code == "ok":
-        return (30, 140, 55)  # verde
-    elif code == "warn":
-        return (210, 170, 32)  # amarelo
-    elif code == "bad":
-        return (194, 28, 28)   # vermelho
-    return (0, 0, 0)
-
-def utc_now():
-    return datetime.datetime.now(pytz.UTC)
+st.set_page_config(
+    page_title="Mass & Balance Planner",
+    page_icon="📊",
+    layout="wide"
+)
 
 def inject_css():
     st.markdown("""
     <style>
-    /* ... (mantém seu CSS como está) ... */
+    /* (your CSS, unchanged) */
     </style>
     """, unsafe_allow_html=True)
 
 st.set_page_config(
     page_title="Mass & Balance Planner",
-    page_icon="📊",
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -99,6 +73,7 @@ icons = {
 afm_files = {
     "Tecnam P2008": "Tecnam_P2008_AFM.pdf"
 }
+
 def get_limits_text(ac):
     units = ac["units"]["weight"]
     arm_unit = ac["units"]["arm"]
@@ -110,8 +85,39 @@ def get_limits_text(ac):
         f"CG Limits: {ac['cg_limits'][0]} to {ac['cg_limits'][1]} {arm_unit}",
     ]
 
+def get_color(val, limit):
+    if limit is None: return "ok"
+    if val > limit:
+        return "bad"
+    elif val > (limit * 0.95):
+        return "warn"
+    else:
+        return "ok"
+
+def get_cg_color(cg, limits):
+    if not limits: return "ok"
+    mn, mx = limits
+    margin = (mx - mn) * 0.05
+    if cg < mn or cg > mx:
+        return "bad"
+    elif cg < mn + margin or cg > mx - margin:
+        return "warn"
+    else:
+        return "ok"
+
+def color_to_rgb(code):
+    # For PDF: ok=green, warn=yellow, bad=red
+    if code == "ok": return (34, 133, 51)     # green
+    if code == "warn": return (216, 170, 34)  # yellow
+    if code == "bad": return (194, 28, 28)    # red
+    return (0,0,0)
+
+def utc_now():
+    return datetime.datetime.now(pytz.UTC)
+
 # --- HEADER ---
 st.markdown(f'<div class="mb-header">Mass & Balance Planner</div>', unsafe_allow_html=True)
+
 cols = st.columns([0.48, 0.02, 0.5], gap="large")
 
 # --- LEFT: Aircraft info, limits, input form grouped at the top ---
@@ -147,7 +153,7 @@ with cols[0]:
             with open(afm_path, "rb") as f:
                 st.download_button("Download Aircraft Flight Manual (AFM)", f, file_name=afm_path, mime="application/pdf")
 
-    # --- INPUT FORM ---
+    # Input Form right after
     with st.form("input_form"):
         units_wt = ac['units']['weight']
         units_arm = ac['units']['arm']
@@ -167,15 +173,14 @@ with cols[0]:
             help="Automatic maximum fuel (default): Fuel will be maximized as per limitations."
         )
         fuel_density = ac['fuel_density']
+        fuel_vol_manual = 0.0
+        fuel_weight_manual = 0.0
         if fuel_mode == "Manual fuel volume":
-            fuel_vol = st.number_input("Fuel Volume (L)", min_value=0.0, value=0.0, step=1.0, key="fuel_vol")
-            fuel_weight = fuel_vol * fuel_density
-        else:
-            fuel_vol = None
-            fuel_weight = None
-        st.form_submit_button("Update")
+            fuel_vol_manual = st.number_input("Fuel Volume (L)", min_value=0.0, value=0.0, step=1.0, key="fuel_vol")
+            fuel_weight_manual = fuel_vol_manual * fuel_density
+        submitted = st.form_submit_button("Update")
 
-# --- CALC LOGIC: always define fuel_weight and fuel_vol ---
+# --- LOGIC: fix manual fuel mode here ---
 fuel_density = ac['fuel_density']
 units_wt = ac['units']['weight']
 units_arm = ac['units']['arm']
@@ -193,9 +198,9 @@ if fuel_mode == "Automatic maximum fuel (default)":
         fuel_vol = ac['max_fuel_volume']
         fuel_limit_by = "Tank Capacity"
 else:
-    # Ensure valid values always set
-    fuel_weight = fuel_weight if fuel_weight is not None else 0.0
-    fuel_vol = fuel_vol if fuel_vol is not None else 0.0
+    # Use manual input!
+    fuel_weight = fuel_weight_manual
+    fuel_vol = fuel_vol_manual
     fuel_limit_by = "Manual Entry"
 
 m_empty = ew_moment
@@ -208,7 +213,6 @@ total_weight = ew + pilot + bag1 + bag2 + fuel_weight
 total_moment = m_empty + m_pilot + m_bag1 + m_bag2 + m_fuel
 cg = (total_moment / total_weight) if total_weight > 0 else 0
 baggage_sum = bag1 + bag2
-
 alert_list = []
 if total_weight > ac['max_takeoff_weight']:
     alert_list.append("Total weight exceeds maximum takeoff weight.")
@@ -318,7 +322,6 @@ with cols[2]:
                 for line in get_limits_text(ac):
                     pdf.cell(0, 5, ascii_safe(line), ln=True)
                 pdf.ln(1)
-                # Mass & Balance Table
                 pdf.set_font("Arial", 'B', 10)
                 col_widths = [45, 36, 34, 55]
                 headers = ["Item", f"Weight ({ac['units']['weight']})", f"Arm ({ac['units']['arm']})", f"Moment ({ac['units']['weight']}·{ac['units']['arm']})"]
@@ -334,15 +337,18 @@ with cols[2]:
                 ]
                 for row in rows:
                     for val, w in zip(row, col_widths):
-                        if isinstance(val, str):
-                            pdf.cell(w, 7, ascii_safe(val), border=1)
-                        else:
-                            pdf.cell(w, 7, ascii_safe(f"{val:.2f}" if isinstance(val, float) else str(val)), border=1, align='C')
+                        pdf.cell(w, 7, ascii_safe(f"{val:.2f}" if isinstance(val, float) else str(val)), border=1, align='C')
                     pdf.ln()
                 pdf.ln(1)
-                # --- Main values with color coding ---
                 pdf.set_font("Arial", 'B', 10)
-                pdf.set_text_color(0,0,0)
+                pdf.set_text_color(50,50,50)
+                # --- Color code for summary fields ---
+                def cell_with_color(pdf, label, value, unit, color_code):
+                    r,g,b = color_to_rgb(color_code)
+                    pdf.set_text_color(r,g,b)
+                    pdf.cell(0, 6, ascii_safe(f"{label}: {value}{unit}"), ln=True)
+                    pdf.set_text_color(0,0,0)
+
                 if fuel_mode == "Automatic maximum fuel (default)":
                     limit_expl = "Limited by: " + ("Tank Capacity" if fuel_limit_by == "Tank Capacity" else "Maximum Weight")
                 elif fuel_limit_by == "Manual Entry":
@@ -350,36 +356,22 @@ with cols[2]:
                 else:
                     limit_expl = fuel_limit_by
                 fuel_str = f"Fuel: {fuel_vol:.1f} L / {fuel_weight:.1f} {ac['units']['weight']} ({limit_expl})"
+                pdf.set_text_color(34,133,51)
                 pdf.cell(0, 6, ascii_safe(fuel_str), ln=True)
-
-                # Apply color for each summary value (Total Weight, Pilot+Passenger, CG, etc)
-                pdf.set_font("Arial", '', 10)
-                # Total Weight
-                color = get_color(total_weight, ac["max_takeoff_weight"])
-                r,g,b = color_rgb(color)
-                pdf.set_text_color(r,g,b)
-                pdf.cell(0, 6, ascii_safe(f"Total Weight: {total_weight:.2f} {ac['units']['weight']} [{color.upper()}]"), ln=True)
                 pdf.set_text_color(0,0,0)
-                # Total Moment (sem cor)
+                # --- Color-coded total weight ---
+                cell_with_color(pdf, "Total Weight", f"{total_weight:.2f} ", ac['units']['weight'], get_color(total_weight, ac["max_takeoff_weight"]))
+                pdf.set_text_color(0,0,0)
                 pdf.cell(0, 6, ascii_safe(f"Total Moment: {total_moment:.2f} {ac['units']['weight']}·{ac['units']['arm']}"), ln=True)
-                # Pilot + Passenger
-                color = get_color(pilot, ac["max_passenger_weight"])
-                r,g,b = color_rgb(color)
-                pdf.set_text_color(r,g,b)
-                pdf.cell(0, 6, ascii_safe(f"Pilot + Passenger: {pilot:.2f} {ac['units']['weight']} [{color.upper()}]"), ln=True)
+                cell_with_color(pdf, "Pilot + Passenger", f"{pilot:.2f} ", ac['units']['weight'], get_color(pilot, ac["max_passenger_weight"]))
                 pdf.set_text_color(0,0,0)
-                # Student / Instructor
                 pdf.cell(0, 6, ascii_safe(f" - Student: {student:.2f} {ac['units']['weight']}"), ln=True)
                 pdf.cell(0, 6, ascii_safe(f" - Instructor: {instructor:.2f} {ac['units']['weight']}"), ln=True)
-                # CG
                 if ac['cg_limits']:
-                    cgcolor = get_cg_color(cg, ac["cg_limits"])
-                    r,g,b = color_rgb(cgcolor)
-                    pdf.set_text_color(r,g,b)
-                    pdf.cell(0, 6, ascii_safe(f"CG: {cg:.3f} {ac['units']['arm']} [{cgcolor.upper()}]"), ln=True)
+                    cell_with_color(pdf, "CG", f"{cg:.3f} ", ac['units']['arm'], get_cg_color(cg, ac["cg_limits"]))
                     pdf.set_text_color(0,0,0)
                     pdf.cell(0, 6, ascii_safe(f"CG Limits: {ac['cg_limits'][0]:.3f} to {ac['cg_limits'][1]:.3f} {ac['units']['arm']}"), ln=True)
-                # Alerts
+                # --- Color for warnings ---
                 if alert_list:
                     pdf.set_font("Arial", 'B', 9)
                     pdf.set_text_color(200,0,0)
@@ -498,5 +490,6 @@ with st.expander("Contact / Suggestion / Bug", expanded=False):
             except Exception as e:
                 st.warning(f"Failed to send message: {e}")
                 print(f"SendGrid Exception: {e}")
+
 
 
