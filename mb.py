@@ -7,6 +7,7 @@ import requests
 import base64
 import json
 import unicodedata
+import math
 
 ADMIN_EMAIL = "alexandre.moiteiro@gmail.com"
 WEBSITE_LINK = "https://mass-balance.streamlit.app/"
@@ -265,7 +266,6 @@ with cols[0]:
             with open(afm_path, "rb") as f:
                 st.download_button("Download Aircraft Flight Manual (AFM)", f, file_name=afm_path, mime="application/pdf")
 
-    # --- MODO DE COMBUSTÍVEL (FORA DO FORM PARA FUNCIONAR) ---
     fuel_mode = st.radio(
         "Fuel Input Mode",
         ["Automatic maximum fuel (default)", "Manual fuel volume"],
@@ -273,7 +273,6 @@ with cols[0]:
         help="Automatic maximum fuel (default): Fuel will be maximized as per limitations."
     )
 
-    # --- FORMULÁRIO ---
     with st.form("input_form"):
         units_wt = ac['units']['weight']
         units_arm = ac['units']['arm']
@@ -293,7 +292,6 @@ with cols[0]:
             max_vol = ac['max_fuel_volume']
             max_wt = ac['max_takeoff_weight'] - (ew + pilot + bag1 + bag2)
             fuel_vol = st.number_input("Fuel Volume (L)", min_value=0.0, value=0.0, step=1.0, key="fuel_vol")
-            # O peso do combustível considerando o máximo permitido pelo peso e pelo tanque:
             fuel_weight = fuel_vol * fuel_density
             fuel_weight_limit = max(0.0, max_wt)
             fuel_weight_tank_limit = max_vol * fuel_density
@@ -305,10 +303,32 @@ with cols[0]:
                 manual_fuel_warning = f"Fuel weight exceeds limit by aircraft weight ({fuel_weight_limit:.1f} kg). Using limit."
                 fuel_weight = fuel_weight_limit
                 fuel_vol = fuel_weight / fuel_density
-            # Se exceder ambos, mostra apenas a última checagem de limite
             if manual_fuel_warning:
                 st.warning(manual_fuel_warning)
         st.form_submit_button("Update")
+
+# --- PERFORMANCE SECTION ---
+with st.expander("Performance", expanded=True):
+    st.markdown("### Performance - Aerodrome Conditions")
+    perf_col1, perf_col2 = st.columns([0.56, 0.44])
+    with perf_col1:
+        icao_code = st.text_input("Aerodrome ICAO Code", value="LPCS", max_chars=8, key="perf_icao")
+        elevation = st.number_input("Aerodrome Elevation (m)", min_value=-400.0, max_value=6000.0, value=114.0, step=1.0, key="perf_elev")
+    with perf_col2:
+        qnh = st.number_input("QNH (hPa)", min_value=900.0, max_value=1050.0, value=1013.0, step=0.1, key="perf_qnh")
+        temp = st.number_input("Temperature (°C)", min_value=-40.0, max_value=60.0, value=15.0, step=0.1, key="perf_temp")
+
+    # --- Cálculo do PA ---
+    pa = elevation + (1013.25 - qnh) * 27  # 27m = 88.6ft (aprox.) por hPa
+    # PA em pés para cálculo ISA temp
+    pa_ft = pa / 0.3048
+    isa_temp = 15 - (2 * (pa_ft / 1000))
+    da = pa + (120 * (temp - isa_temp))
+    st.markdown(f"""<div style="margin-top: 0.5em;">
+    <b>Pressure Altitude (PA):</b> <span style='font-weight:600'>{pa:.0f} m</span><br>
+    <b>Density Altitude (DA):</b> <span style='font-weight:600'>{da:.0f} m</span><br>
+    <span style='font-size:0.96em;color:#6c6c6c'>(ISA temp at PA: {isa_temp:.1f} °C)</span>
+    </div>""", unsafe_allow_html=True)
 
 # --- LOGIC ---
 fuel_density = ac['fuel_density']
@@ -328,8 +348,6 @@ if fuel_mode == "Automatic maximum fuel (default)":
         fuel_vol = ac['max_fuel_volume']
         fuel_limit_by = "Tank Capacity"
 else:
-    # Já tratado no form: fuel_vol e fuel_weight limitados
-    # Decidir quem foi o limitante (tanque ou peso)
     if 'fuel_vol' in locals() and 'fuel_weight' in locals():
         tank_capacity_weight = ac['max_fuel_volume'] * fuel_density
         useful_load = ac['max_takeoff_weight'] - (ew + pilot + bag1 + bag2)
@@ -396,6 +414,21 @@ with cols[2]:
     for a in alert_list:
         st.markdown(f'<div class="mb-alert">{a}</div>', unsafe_allow_html=True)
     st.markdown('<div style="height:10px;"></div>', unsafe_allow_html=True)
+
+    # --- PERFORMANCE SUMMARY ---
+    st.markdown('<div class="section-title" style="margin-bottom:8px;">Performance</div>', unsafe_allow_html=True)
+    st.markdown(f"""
+    <div class="mb-summary">
+    <div class="mb-summary-row"><div class="mb-summary-label">Aerodrome (ICAO)</div><div class="mb-summary-val">{icao_code}</div></div>
+    <div class="mb-summary-row"><div class="mb-summary-label">Elevation</div><div class="mb-summary-val">{elevation:.0f} m</div></div>
+    <div class="mb-summary-row"><div class="mb-summary-label">QNH</div><div class="mb-summary-val">{qnh:.1f} hPa</div></div>
+    <div class="mb-summary-row"><div class="mb-summary-label">Temperature</div><div class="mb-summary-val">{temp:.1f} °C</div></div>
+    <div class="mb-summary-row"><div class="mb-summary-label">Pressure Altitude (PA)</div><div class="mb-summary-val">{pa:.0f} m</div></div>
+    <div class="mb-summary-row"><div class="mb-summary-label">Density Altitude (DA)</div><div class="mb-summary-val">{da:.0f} m</div></div>
+    <div class="mb-summary-row"><div class="mb-summary-label">ISA Temp at PA</div><div class="mb-summary-val">{isa_temp:.1f} °C</div></div>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown('<div class="section-title" style="margin-bottom:9px;">Mass & Balance Table</div>', unsafe_allow_html=True)
     items = [
         ("Empty Weight", ew, ew_arm, m_empty),
@@ -461,6 +494,18 @@ with cols[2]:
                 for line in get_limits_text(ac):
                     pdf.cell(0, 5, ascii_safe(line), ln=True)
                 pdf.ln(1)
+                # PERFORMANCE SECTION PDF
+                pdf.set_font("Arial", 'B', 10)
+                pdf.cell(0, 6, ascii_safe("Performance - Aerodrome Conditions:"), ln=True)
+                pdf.set_font("Arial", '', 9)
+                pdf.cell(0, 5, ascii_safe(f"Aerodrome (ICAO): {icao_code}"), ln=True)
+                pdf.cell(0, 5, ascii_safe(f"Elevation: {elevation:.0f} m"), ln=True)
+                pdf.cell(0, 5, ascii_safe(f"QNH: {qnh:.1f} hPa"), ln=True)
+                pdf.cell(0, 5, ascii_safe(f"Temperature: {temp:.1f} °C"), ln=True)
+                pdf.cell(0, 5, ascii_safe(f"Pressure Altitude (PA): {pa:.0f} m"), ln=True)
+                pdf.cell(0, 5, ascii_safe(f"Density Altitude (DA): {da:.0f} m"), ln=True)
+                pdf.cell(0, 5, ascii_safe(f"ISA Temp at PA: {isa_temp:.1f} °C"), ln=True)
+                pdf.ln(1)
                 pdf.set_font("Arial", 'B', 10)
                 col_widths = [45, 36, 34, 55]
                 headers = ["Item", f"Weight ({ac['units']['weight']})", f"Arm ({ac['units']['arm']})", f"Moment ({ac['units']['weight']}·{ac['units']['arm']})"]
@@ -468,7 +513,6 @@ with cols[2]:
                     pdf.cell(w, 7, ascii_safe(h), border=1, align='C')
                 pdf.ln()
                 pdf.set_font("Arial", '', 9)
-                # --- NÃO COLORIR A TABELA ---
                 rows = [
                     ("Empty Weight", ew, ew_arm, m_empty),
                     ("Pilot & Passenger", pilot, ac['pilot_arm'], m_pilot),
@@ -526,7 +570,6 @@ with cols[2]:
                 with open(pdf_file, "rb") as f:
                     st.download_button("Download PDF", f, file_name=pdf_file, mime="application/pdf")
                 st.success("PDF generated successfully!")
-                # ---- EMAIL SEND (with error handling) ----
                 try:
                     with open(pdf_file, "rb") as f:
                         pdf_bytes = f.read()
@@ -633,8 +676,3 @@ with st.expander("Contact / Suggestion / Bug", expanded=False):
             except Exception as e:
                 st.warning(f"Failed to send message: {e}")
                 print(f"SendGrid Exception: {e}")
-
-
-
-
-
