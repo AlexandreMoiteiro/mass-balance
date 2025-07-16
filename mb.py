@@ -18,6 +18,35 @@ def ascii_safe(text):
         return str(text)
     return unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('ascii')
 
+def get_color(val, limit):
+    if limit is None: return "ok"
+    if val > limit:
+        return "bad"
+    elif val > (limit * 0.95):
+        return "warn"
+    else:
+        return "ok"
+
+def get_cg_color(cg, limits):
+    if not limits: return "ok"
+    mn, mx = limits
+    margin = (mx - mn) * 0.05
+    if cg < mn or cg > mx:
+        return "bad"
+    elif cg < mn + margin or cg > mx - margin:
+        return "warn"
+    else:
+        return "ok"
+
+def color_rgb(code):
+    if code == "ok":
+        return (30, 150, 30)
+    if code == "warn":
+        return (200, 150, 30)
+    if code == "bad":
+        return (200, 0, 0)
+    return (0, 0, 0)
+
 class CustomPDF(FPDF):
     def footer(self):
         self.set_y(-10)
@@ -30,12 +59,6 @@ class CustomPDF(FPDF):
         )
         self.multi_cell(0, 2.8, ascii_safe(footer_text), align='C')
         self.set_text_color(0,0,0)
-
-st.set_page_config(
-    page_title="Mass & Balance Planner",
-    page_icon="📊",
-    layout="wide"
-)
 
 def inject_css():
     st.markdown("""
@@ -201,24 +224,6 @@ def get_limits_text(ac):
         f"Max Baggage: {ac['max_baggage_weight']} {units}",
         f"CG Limits: {ac['cg_limits'][0]} to {ac['cg_limits'][1]} {arm_unit}",
     ]
-def get_color(val, limit):
-    if limit is None: return "ok"
-    if val > limit:
-        return "bad"
-    elif val > (limit * 0.95):
-        return "warn"
-    else:
-        return "ok"
-def get_cg_color(cg, limits):
-    if not limits: return "ok"
-    mn, mx = limits
-    margin = (mx - mn) * 0.05
-    if cg < mn or cg > mx:
-        return "bad"
-    elif cg < mn + margin or cg > mx - margin:
-        return "warn"
-    else:
-        return "ok"
 def utc_now():
     return datetime.datetime.now(pytz.UTC)
 
@@ -401,7 +406,6 @@ with cols[2]:
         flight_datetime_no_utc = flight_datetime_utc.replace(" UTC", "").strip()
         pilot_name_valid = bool(pilot_name.strip())
         pdf_button = st.button("Generate PDF with current values", disabled=not pilot_name_valid)
-
         if pdf_button and pilot_name_valid:
             try:
                 pdf = CustomPDF()
@@ -472,20 +476,20 @@ with cols[2]:
                     limit_expl = fuel_limit_by
                 fuel_str = f"Fuel: {fuel_vol:.1f} L / {fuel_weight:.1f} {ac['units']['weight']} ({limit_expl})"
                 pdf.cell(0, 6, ascii_safe(fuel_str), ln=True)
-                # --- COLORIDO: TOTAL WEIGHT
+                # COLORIDO: TOTAL WEIGHT
                 total_weight_color = color_rgb(get_color(total_weight, ac["max_takeoff_weight"]))
                 pdf.set_text_color(*total_weight_color)
                 pdf.cell(0, 6, ascii_safe(f"Total Weight: {total_weight:.2f} {ac['units']['weight']}"), ln=True)
                 pdf.set_text_color(0,0,0)
                 pdf.cell(0, 6, ascii_safe(f"Total Moment: {total_moment:.2f} {ac['units']['weight']}·{ac['units']['arm']}"), ln=True)
-                # --- COLORIDO: PILOT+PASSENGER
+                # COLORIDO: PILOT+PASSENGER
                 pilot_color = color_rgb(get_color(pilot, ac["max_passenger_weight"]))
                 pdf.set_text_color(*pilot_color)
                 pdf.cell(0, 6, ascii_safe(f"Pilot + Passenger: {pilot:.2f} {ac['units']['weight']}"), ln=True)
                 pdf.set_text_color(0,0,0)
                 pdf.cell(0, 6, ascii_safe(f" - Student: {student:.2f} {ac['units']['weight']}"), ln=True)
                 pdf.cell(0, 6, ascii_safe(f" - Instructor: {instructor:.2f} {ac['units']['weight']}"), ln=True)
-                # --- COLORIDO: CG
+                # COLORIDO: CG
                 if ac['cg_limits']:
                     cg_color = color_rgb(get_cg_color(cg, ac["cg_limits"]))
                     pdf.set_text_color(*cg_color)
@@ -503,7 +507,60 @@ with cols[2]:
                 with open(pdf_file, "rb") as f:
                     st.download_button("Download PDF", f, file_name=pdf_file, mime="application/pdf")
                 st.success("PDF generated successfully!")
-                st.markdown('</div>', unsafe_allow_html=True)
+                # ---- EMAIL SEND (with error handling) ----
+                try:
+                    with open(pdf_file, "rb") as f:
+                        pdf_bytes = f.read()
+                    html_body = f"""
+                    <html>
+                    <body>
+                        <h2>Mass & Balance Report</h2>
+                        <table style='border-collapse:collapse;'>
+                            <tr><th align='left'>Pilot</th><td>{pilot_name}</td></tr>
+                            <tr><th align='left'>Aircraft</th><td>{aircraft} ({registration})</td></tr>
+                            <tr><th align='left'>Mission</th><td>{mission_number}</td></tr>
+                            <tr><th align='left'>Flight (UTC)</th><td>{flight_datetime_no_utc} UTC</td></tr>
+                            <tr><th align='left'>Submitted from</th><td>{WEBSITE_LINK}</td></tr>
+                        </table>
+                        <p style='margin-top:1.5em;'>See attached PDF for details.</p>
+                    </body>
+                    </html>
+                    """
+                    data = {
+                        "personalizations": [
+                            {
+                                "to": [{"email": ADMIN_EMAIL}],
+                                "subject": f"Mass & Balance - {pilot_name.strip()}"
+                            }
+                        ],
+                        "from": {"email": SENDER_EMAIL},
+                        "content": [
+                            {
+                                "type": "text/html",
+                                "value": html_body
+                            }
+                        ],
+                        "attachments": [{
+                            "content": base64.b64encode(pdf_bytes).decode(),
+                            "type": "application/pdf",
+                            "filename": pdf_file,
+                            "disposition": "attachment"
+                        }]
+                    }
+                    headers = {
+                        "Authorization": f"Bearer {SENDGRID_API_KEY}",
+                        "Content-Type": "application/json"
+                    }
+                    resp = requests.post("https://api.sendgrid.com/v3/mail/send", data=json.dumps(data), headers=headers)
+                    if resp.status_code >= 400:
+                        st.warning(f"PDF generated but failed to send email (check SENDGRID_API_KEY and email settings). Error: {resp.text}")
+                        print(f"SendGrid error: {resp.text}")
+                except Exception as e:
+                    st.warning(f"PDF generated but failed to send email: {e}")
+                    print(f"SendGrid Exception: {e}")
+            except Exception as e:
+                st.error(f"PDF generation or email failed: {e}")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- CONTACT AND FOOTER ---
 st.markdown('<div class="footer">Site developed by Alexandre Moiteiro. All rights reserved.</div>', unsafe_allow_html=True)
@@ -557,6 +614,7 @@ with st.expander("Contact / Suggestion / Bug", expanded=False):
             except Exception as e:
                 st.warning(f"Failed to send message: {e}")
                 print(f"SendGrid Exception: {e}")
+
 
 
 
