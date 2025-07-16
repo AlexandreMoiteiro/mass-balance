@@ -485,8 +485,8 @@ with cols[2]:
         <div class="mb-summary-row"><div class="mb-summary-label">Elevation</div><div class="mb-summary-val">{po['elev_ft']:.0f} ft</div></div>
         <div class="mb-summary-row"><div class="mb-summary-label">QNH</div><div class="mb-summary-val">{po['qnh']:.1f} hPa</div></div>
         <div class="mb-summary-row"><div class="mb-summary-label">Temperature</div><div class="mb-summary-val">{po['temp']:.1f} °C</div></div>
-        <div class="mb-summary-row"><span class="da-pa-highlight">Pressure Altitude (PA)</span><div class="mb-summary-val da-pa-highlight">{po['pa_ft']:.0f} ft</div></div>
-        <div class="mb-summary-row"><span class="da-pa-highlight">Density Altitude (DA)</span><div class="mb-summary-val da-pa-highlight">{po['da_ft']:.0f} ft</div></div>
+        <div class="mb-summary-row"><span class="da-pa-highlight">Pressure Altitude (PA)<span style="font-weight:bold;">Pressure Altitude (PA):</span> {pa_ft:.0f} ft<br> ft</div></div>
+        <div class="mb-summary-row"><span class="da-pa-highlight">Density Altitude (DA)<span style="font-weight:bold;">Density Altitude (DA):</span> {pa_ft:.0f} ft<br> ft</div></div>
         </div>
         """, unsafe_allow_html=True)
 
