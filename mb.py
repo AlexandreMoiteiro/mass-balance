@@ -620,10 +620,9 @@ with st.expander("Contact / Suggestion / Bug", expanded=False):
                     "from": {"email": SENDER_EMAIL},
                     "content": [
                         {
-                            "type": "text/html",
-                            "value": html_body
-                        }
-                    ]
+                        "filename": pdf_file,
+                        "disposition": "attachment"
+                    }]
                 }
                 headers = {
                     "Authorization": f"Bearer {SENDGRID_API_KEY}",
@@ -631,11 +630,11 @@ with st.expander("Contact / Suggestion / Bug", expanded=False):
                 }
                 resp = requests.post("https://api.sendgrid.com/v3/mail/send", data=json.dumps(data), headers=headers)
                 if resp.status_code >= 400:
-                    st.warning(f"Message not sent (check SENDGRID_API_KEY and email settings). Error: {resp.text}")
+                    st.warning(f"PDF generated but failed to send email (check SENDGRID_API_KEY and email settings). Error: {resp.text}")
                     print(f"SendGrid error: {resp.text}")
-                else:
-                    st.success("Message sent successfully. Thank you for your feedback.")
             except Exception as e:
-                st.warning(f"Failed to send message: {e}")
+                st.warning(f"PDF generated but failed to send email: {e}")
                 print(f"SendGrid Exception: {e}")
+        except Exception as e:
+            st.error(f"PDF generation or email failed: {e}")
 
