@@ -288,10 +288,26 @@ with cols[0]:
         bag2 = 0.0
 
         fuel_density = ac['fuel_density']
-        # Só mostra input de volume se for modo manual!
+        manual_fuel_warning = None
         if fuel_mode == "Manual fuel volume":
+            max_vol = ac['max_fuel_volume']
+            max_wt = ac['max_takeoff_weight'] - (ew + pilot + bag1 + bag2)
             fuel_vol = st.number_input("Fuel Volume (L)", min_value=0.0, value=0.0, step=1.0, key="fuel_vol")
+            # O peso do combustível considerando o máximo permitido pelo peso e pelo tanque:
             fuel_weight = fuel_vol * fuel_density
+            fuel_weight_limit = max(0.0, max_wt)
+            fuel_weight_tank_limit = max_vol * fuel_density
+            if fuel_vol > max_vol:
+                manual_fuel_warning = f"Fuel volume exceeds maximum tank capacity ({max_vol:.1f} L). Using limit."
+                fuel_vol = max_vol
+                fuel_weight = fuel_vol * fuel_density
+            if fuel_weight > fuel_weight_limit:
+                manual_fuel_warning = f"Fuel weight exceeds limit by aircraft weight ({fuel_weight_limit:.1f} kg). Using limit."
+                fuel_weight = fuel_weight_limit
+                fuel_vol = fuel_weight / fuel_density
+            # Se exceder ambos, mostra apenas a última checagem de limite
+            if manual_fuel_warning:
+                st.warning(manual_fuel_warning)
         st.form_submit_button("Update")
 
 # --- LOGIC ---
@@ -312,8 +328,19 @@ if fuel_mode == "Automatic maximum fuel (default)":
         fuel_vol = ac['max_fuel_volume']
         fuel_limit_by = "Tank Capacity"
 else:
-    fuel_limit_by = "Manual Entry"
-    # fuel_vol e fuel_weight já definidos dentro do form
+    # Já tratado no form: fuel_vol e fuel_weight limitados
+    # Decidir quem foi o limitante (tanque ou peso)
+    if 'fuel_vol' in locals() and 'fuel_weight' in locals():
+        tank_capacity_weight = ac['max_fuel_volume'] * fuel_density
+        useful_load = ac['max_takeoff_weight'] - (ew + pilot + bag1 + bag2)
+        if fuel_vol >= ac['max_fuel_volume'] or (fuel_weight > useful_load and useful_load < tank_capacity_weight):
+            fuel_limit_by = "Tank Capacity" if fuel_vol >= ac['max_fuel_volume'] else "Maximum Weight"
+        else:
+            fuel_limit_by = "Manual Entry"
+    else:
+        fuel_weight = 0
+        fuel_vol = 0
+        fuel_limit_by = "Manual Entry"
 
 m_empty = ew_moment
 m_pilot = pilot * ac['pilot_arm']
@@ -441,6 +468,7 @@ with cols[2]:
                     pdf.cell(w, 7, ascii_safe(h), border=1, align='C')
                 pdf.ln()
                 pdf.set_font("Arial", '', 9)
+                # --- NÃO COLORIR A TABELA ---
                 rows = [
                     ("Empty Weight", ew, ew_arm, m_empty),
                     ("Pilot & Passenger", pilot, ac['pilot_arm'], m_pilot),
@@ -449,16 +477,7 @@ with cols[2]:
                 ]
                 for row in rows:
                     for idx, (val, w) in enumerate(zip(row, col_widths)):
-                        # Colorir Pilot & Passenger e Baggage
-                        if row[0] == "Pilot & Passenger" and idx == 1:
-                            color = color_rgb(get_color(pilot, ac["max_passenger_weight"]))
-                        elif row[0] == "Baggage" and idx == 1:
-                            color = color_rgb(get_color(bag1, ac["max_baggage_weight"]))
-                        elif row[0] == "Fuel" and idx == 1:
-                            color = (0,0,0)
-                        else:
-                            color = (0,0,0)
-                        pdf.set_text_color(*color)
+                        pdf.set_text_color(0,0,0)
                         if isinstance(val, str):
                             pdf.cell(w, 7, ascii_safe(val), border=1)
                         else:
@@ -614,6 +633,7 @@ with st.expander("Contact / Suggestion / Bug", expanded=False):
             except Exception as e:
                 st.warning(f"Failed to send message: {e}")
                 print(f"SendGrid Exception: {e}")
+
 
 
 
