@@ -429,7 +429,6 @@ with cols[2]:
         mission_number = st.text_input("Mission number", value="001")
         utc_today = utc_now()
         default_datetime = utc_today.strftime("%Y-%m-%d %H:%M UTC")
-        flight_datetime_utc = st.text_input(
         flight_datetime_utc = st.text_input("Scheduled flight date and time (UTC)", value=default_datetime, key="flight_datetime_utc")
         flight_datetime_no_utc = flight_datetime_utc.replace(" UTC", "").strip()
         pilot_name_valid = bool(pilot_name.strip())
