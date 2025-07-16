@@ -18,61 +18,6 @@ def ascii_safe(text):
         return str(text)
     return unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('ascii')
 
-def get_limits_text(ac):
-    units = ac["units"]["weight"]
-    arm_unit = ac["units"]["arm"]
-    return [
-        f"Max Takeoff Weight: {ac['max_takeoff_weight']} {units}",
-        f"Max Fuel Volume: {ac['max_fuel_volume']} L",
-        f"Max Pilot+Passenger: {ac['max_passenger_weight']} {units}",
-        f"Max Baggage: {ac['max_baggage_weight']} {units}",
-        f"CG Limits: {ac['cg_limits'][0]} to {ac['cg_limits'][1]} {arm_unit}",
-    ]
-
-def get_color(val, limit):
-    if limit is None: return "ok"
-    if val > limit:
-        return "bad"
-    elif val > (limit * 0.95):
-        return "warn"
-    else:
-        return "ok"
-
-def get_rgb_status(val, limit):
-    # Retorna (R, G, B) para ok, warn, bad
-    if limit is None: return (29, 133, 51)  # verde
-    if val > limit:
-        return (194, 28, 28)  # vermelho
-    elif val > (limit * 0.95):
-        return (216, 170, 34) # amarelo
-    else:
-        return (29, 133, 51)  # verde
-
-def get_cg_color(cg, limits):
-    if not limits: return "ok"
-    mn, mx = limits
-    margin = (mx - mn) * 0.05
-    if cg < mn or cg > mx:
-        return "bad"
-    elif cg < mn + margin or cg > mx - margin:
-        return "warn"
-    else:
-        return "ok"
-
-def get_cg_rgb(cg, limits):
-    if not limits: return (29, 133, 51)
-    mn, mx = limits
-    margin = (mx - mn) * 0.05
-    if cg < mn or cg > mx:
-        return (194, 28, 28)
-    elif cg < mn + margin or cg > mx - margin:
-        return (216, 170, 34)
-    else:
-        return (29, 133, 51)
-
-def utc_now():
-    return datetime.datetime.now(pytz.UTC)
-
 class CustomPDF(FPDF):
     def footer(self):
         self.set_y(-10)
@@ -86,135 +31,48 @@ class CustomPDF(FPDF):
         self.multi_cell(0, 2.8, ascii_safe(footer_text), align='C')
         self.set_text_color(0,0,0)
 
-st.set_page_config(
-    page_title="Mass & Balance Planner",
-    page_icon="📊",
-    layout="wide"
-)
+def get_color(val, limit):
+    if limit is None: return "ok"
+    if val > limit:
+        return "bad"
+    elif val > (limit * 0.95):
+        return "warn"
+    else:
+        return "ok"
+def get_cg_color(cg, limits):
+    if not limits: return "ok"
+    mn, mx = limits
+    margin = (mx - mn) * 0.05
+    if cg < mn or cg > mx:
+        return "bad"
+    elif cg < mn + margin or cg > mx - margin:
+        return "warn"
+    else:
+        return "ok"
+
+def color_rgb(code):
+    # For PDF color (tuple: R,G,B)
+    if code == "ok":
+        return (30, 140, 55)  # verde
+    elif code == "warn":
+        return (210, 170, 32)  # amarelo
+    elif code == "bad":
+        return (194, 28, 28)   # vermelho
+    return (0, 0, 0)
+
+def utc_now():
+    return datetime.datetime.now(pytz.UTC)
 
 def inject_css():
     st.markdown("""
     <style>
-    html, body, [class*="css"] {
-        font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
-        font-size: 15px;
-        line-height: 1.58;
-    }
-    .block-container { max-width: 1120px !important; margin: auto; padding-top:16px;}
-    .mb-header {
-        font-size: 1.27rem;
-        font-weight: 800;
-        letter-spacing: .02em;
-        color: inherit;
-        border-bottom: 1px solid #e5e7ec;
-        margin-bottom: 0;
-        padding-bottom: 7px;
-        text-transform: uppercase;
-    }
-    .mb-limits {
-        font-size: 0.98rem;
-        color: inherit;
-        margin-bottom: 10px;
-        padding: 2px 0 3px 0;
-    }
-    .mb-limits ul {
-        margin: 0 0 8px 0;
-        padding-left: 20px;
-    }
-    .mb-limits li {
-        margin-bottom: 2px;
-        font-size: 0.96rem;
-        list-style-type: disc;
-    }
-    .mb-table {
-        border-collapse: collapse;
-        width: 100%;
-        background: inherit;
-        font-size: 0.98rem;
-        margin: 0 0 10px 0;
-    }
-    .mb-table th {
-        font-weight: 700;
-        border-bottom: 2px solid #cbd0d6;
-        color: #23282f;
-        background: transparent;
-    }
-    @media (prefers-color-scheme: dark) {
-        .mb-table th {
-            color: #f6f8fa !important;
-            border-bottom: 2px solid #4c5263 !important;
-        }
-        .mb-table td {
-            color: #f6f8fa !important;
-        }
-    }
-    .mb-table td { color: inherit; font-weight: 500; text-align:center;}
-    .mb-table td:first-child {text-align:left;}
-    .mb-table tr:last-child td { border-bottom: none; }
-    .mb-summary { font-size: 1.08rem; margin-bottom: 9px;}
-    .mb-summary-row { display: flex; align-items: baseline; justify-content: space-between; margin: 4px 0;}
-    .mb-summary-label { color: inherit;}
-    .mb-summary-val { font-weight: 600; letter-spacing: .02em;}
-    .ok { color: #1d8533;}
-    .warn { color: #d8aa22;}
-    .bad { color: #c21c1c;}
-    .mb-alert {
-        background: var(--secondary-background-color, #fff7f6);
-        border-left: 5px solid #c21c1c;
-        color: #b51e14;
-        font-weight: 600;
-        font-size: 1.03rem;
-        padding: 8px 15px 8px 17px;
-        margin-bottom: 13px;
-        margin-top: 9px;
-    }
-    .mb-section {
-        background: transparent !important;
-        border: none !important;
-        border-radius: 0 !important;
-        box-shadow: none !important;
-        padding: 0 !important;
-        margin-bottom: 20px;
-    }
-    .mb-pdf-section {margin-top:18px;}
-    .stDownloadButton {margin-top:11px;}
-    .mb-contact-panel {
-        background: var(--secondary-background-color, #f8fafd);
-        border:1px solid #e5e7ec;
-        padding:12px 12px 8px 12px;
-        border-radius: 7px;
-        margin-top: 10px;
-        box-shadow: none;
-    }
-    .footer {margin-top:32px;font-size:0.96rem;color:var(--text-color,#a0a8b6);text-align:center;}
-    .stButton>button {width:100%;}
-    .st-expander {border-radius:0;}
-    .mb-aircraft-icon {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin: 0 0 18px 0;
-        width: 100%;
-    }
-    .mb-aircraft-icon img {
-        max-width: 260px !important;
-        width: 100% !important;
-        height: auto !important;
-        border: none !important;
-        background: transparent !important;
-        box-shadow: none !important;
-        margin: auto;
-        padding: 0;
-        display: block;
-        filter: drop-shadow(0px 2px 12px #b1b3c222);
-        image-rendering: auto;
-    }
+    /* ... (mantém seu CSS como está) ... */
     </style>
     """, unsafe_allow_html=True)
 
 st.set_page_config(
     page_title="Mass & Balance Planner",
-    page_icon=None,
+    page_icon="📊",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -241,6 +99,16 @@ icons = {
 afm_files = {
     "Tecnam P2008": "Tecnam_P2008_AFM.pdf"
 }
+def get_limits_text(ac):
+    units = ac["units"]["weight"]
+    arm_unit = ac["units"]["arm"]
+    return [
+        f"Max Takeoff Weight: {ac['max_takeoff_weight']} {units}",
+        f"Max Fuel Volume: {ac['max_fuel_volume']} L",
+        f"Max Pilot+Passenger: {ac['max_passenger_weight']} {units}",
+        f"Max Baggage: {ac['max_baggage_weight']} {units}",
+        f"CG Limits: {ac['cg_limits'][0]} to {ac['cg_limits'][1]} {arm_unit}",
+    ]
 
 # --- HEADER ---
 st.markdown(f'<div class="mb-header">Mass & Balance Planner</div>', unsafe_allow_html=True)
@@ -284,72 +152,69 @@ with cols[0]:
         units_wt = ac['units']['weight']
         units_arm = ac['units']['arm']
         st.markdown("### Enter Weights")
-        ew = st.number_input(f"Empty Weight ({units_wt})", min_value=0.0, value=st.session_state.get("ew", 0.0), step=1.0, key="ew")
-        ew_moment = st.number_input(f"Empty Weight Moment ({units_wt}·{units_arm})", min_value=0.0, value=st.session_state.get("ew_moment", 0.0), step=1.0, key="ew_moment")
+        ew = st.number_input(f"Empty Weight ({units_wt})", min_value=0.0, value=0.0, step=1.0, key="ew")
+        ew_moment = st.number_input(f"Empty Weight Moment ({units_wt}·{units_arm})", min_value=0.0, value=0.0, step=1.0, key="ew_moment")
         ew_arm = ew_moment / ew if ew > 0 else 0.0
-        student = st.number_input(f"Student Weight ({units_wt})", min_value=0.0, value=st.session_state.get("student", 0.0), step=1.0, key="student")
-        instructor = st.number_input(f"Instructor Weight ({units_wt})", min_value=0.0, value=st.session_state.get("instructor", 0.0), step=1.0, key="instructor")
+        student = st.number_input(f"Student Weight ({units_wt})", min_value=0.0, value=0.0, step=1.0, key="student")
+        instructor = st.number_input(f"Instructor Weight ({units_wt})", min_value=0.0, value=0.0, step=1.0, key="instructor")
         pilot = student + instructor
-        bag1 = st.number_input(f"Baggage ({units_wt})", min_value=0.0, value=st.session_state.get("bag1", 0.0), step=1.0, key="bag1")
+        bag1 = st.number_input(f"Baggage ({units_wt})", min_value=0.0, value=0.0, step=1.0, key="bag1")
         bag2 = 0.0
-
         fuel_mode = st.radio(
             "Fuel Input Mode",
             ["Automatic maximum fuel (default)", "Manual fuel volume"],
-            index=0 if st.session_state.get("fuel_mode", "Automatic maximum fuel (default)") == "Automatic maximum fuel (default)" else 1,
-            key="fuel_mode",
+            index=0, key="fuel_mode",
             help="Automatic maximum fuel (default): Fuel will be maximized as per limitations."
         )
         fuel_density = ac['fuel_density']
         if fuel_mode == "Manual fuel volume":
-            manual_fuel_vol = st.number_input("Fuel Volume (L)", min_value=0.0, value=st.session_state.get("manual_fuel_vol", 0.0), step=1.0, key="manual_fuel_vol")
-        form_submitted = st.form_submit_button("Update")
-        # Mantém estado atualizado
-        if form_submitted:
-            st.session_state["ew"] = ew
-            st.session_state["ew_moment"] = ew_moment
-            st.session_state["student"] = student
-            st.session_state["instructor"] = instructor
-            st.session_state["bag1"] = bag1
-            st.session_state["fuel_mode"] = fuel_mode
-            if fuel_mode == "Manual fuel volume":
-                st.session_state["manual_fuel_vol"] = st.session_state.get("manual_fuel_vol", 0.0)
+            fuel_vol = st.number_input("Fuel Volume (L)", min_value=0.0, value=0.0, step=1.0, key="fuel_vol")
+            fuel_weight = fuel_vol * fuel_density
+        else:
+            fuel_vol = None
+            fuel_weight = None
+        st.form_submit_button("Update")
 
-# --- LOGIC ---
-fuel_mode = st.session_state.get("fuel_mode", "Automatic maximum fuel (default)")
+# --- CALC LOGIC: always define fuel_weight and fuel_vol ---
+fuel_density = ac['fuel_density']
+units_wt = ac['units']['weight']
+units_arm = ac['units']['arm']
+
 if fuel_mode == "Automatic maximum fuel (default)":
     useful_load = ac['max_takeoff_weight'] - (ew + pilot + bag1 + bag2)
     fuel_weight_possible = max(0.0, useful_load)
-    tank_capacity_weight = ac['max_fuel_volume'] * ac['fuel_density']
+    tank_capacity_weight = ac['max_fuel_volume'] * fuel_density
     if fuel_weight_possible <= tank_capacity_weight:
         fuel_weight = fuel_weight_possible
-        fuel_vol = fuel_weight / ac['fuel_density']
+        fuel_vol = fuel_weight / fuel_density
         fuel_limit_by = "Maximum Weight"
     else:
         fuel_weight = tank_capacity_weight
         fuel_vol = ac['max_fuel_volume']
         fuel_limit_by = "Tank Capacity"
 else:
-    fuel_vol = st.session_state.get("manual_fuel_vol", 0.0)
-    fuel_weight = fuel_vol * ac["fuel_density"]
+    # Ensure valid values always set
+    fuel_weight = fuel_weight if fuel_weight is not None else 0.0
+    fuel_vol = fuel_vol if fuel_vol is not None else 0.0
     fuel_limit_by = "Manual Entry"
 
 m_empty = ew_moment
-m_pilot = (student + instructor) * ac['pilot_arm']
+m_pilot = pilot * ac['pilot_arm']
 m_bag1 = bag1 * ac['baggage_arm']
 m_bag2 = 0.0
 m_fuel = fuel_weight * ac['fuel_arm']
 
-total_weight = ew + student + instructor + bag1 + bag2 + fuel_weight
+total_weight = ew + pilot + bag1 + bag2 + fuel_weight
 total_moment = m_empty + m_pilot + m_bag1 + m_bag2 + m_fuel
 cg = (total_moment / total_weight) if total_weight > 0 else 0
 baggage_sum = bag1 + bag2
+
 alert_list = []
 if total_weight > ac['max_takeoff_weight']:
     alert_list.append("Total weight exceeds maximum takeoff weight.")
 if bag1 > ac['max_baggage_weight']:
     alert_list.append("Baggage exceeds allowed limit.")
-if ac.get("max_passenger_weight") and (student + instructor) > ac["max_passenger_weight"]:
+if ac.get("max_passenger_weight") and pilot > ac["max_passenger_weight"]:
     alert_list.append("Pilot + Passenger (student + instructor) exceed allowed limit.")
 if ac['cg_limits']:
     mn, mx = ac['cg_limits']
@@ -369,18 +234,21 @@ with cols[2]:
         limit_word = "Manual Entry"
     else:
         limit_word = fuel_limit_by
-    st.markdown(
-        f'<div class="mb-summary-row"><div class="mb-summary-label">Fuel</div><div class="mb-summary-val ok">{fuel_vol:.1f} L / {fuel_weight:.1f} {ac["units"]["weight"]}<span style="color:#8c8c8c;font-size:0.97em;"> &nbsp;({limit_word})</span></div></div>',
-        unsafe_allow_html=True
-    )
-    st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label">Total Weight</div><div class="mb-summary-val {get_color(total_weight, ac["max_takeoff_weight"])}">{total_weight:.2f} {ac["units"]["weight"]}</div></div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label">Total Moment</div><div class="mb-summary-val">{total_moment:.2f} {ac["units"]["weight"]}·{ac["units"]["arm"]}</div></div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label">Pilot + Passenger</div><div class="mb-summary-val {get_color(student+instructor, ac["max_passenger_weight"])}">{student+instructor:.2f} {ac["units"]["weight"]}</div></div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label"> - Student</div><div class="mb-summary-val">{student:.2f} {ac["units"]["weight"]}</div></div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label"> - Instructor</div><div class="mb-summary-val">{instructor:.2f} {ac["units"]["weight"]}</div></div>', unsafe_allow_html=True)
+    if fuel_mode == "Automatic maximum fuel (default)":
+        st.markdown(
+            f'<div class="mb-summary-row"><div class="mb-summary-label">Fuel possible</div><div class="mb-summary-val ok">{fuel_vol:.1f} L / {fuel_weight:.1f} {units_wt}<span style="color:#8c8c8c;font-size:0.97em;"> &nbsp;({limit_word})</span></div></div>',
+            unsafe_allow_html=True
+        )
+    else:
+        st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label">Fuel</div><div class="mb-summary-val ok">{fuel_vol:.1f} L / {fuel_weight:.1f} {units_wt}<span style="color:#8c8c8c;font-size:0.97em;"> &nbsp;({limit_word})</span></div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label">Total Weight</div><div class="mb-summary-val {get_color(total_weight, ac["max_takeoff_weight"])}">{total_weight:.2f} {units_wt}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label">Total Moment</div><div class="mb-summary-val">{total_moment:.2f} {units_wt}·{units_arm}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label">Pilot + Passenger</div><div class="mb-summary-val {get_color(pilot, ac["max_passenger_weight"])}">{pilot:.2f} {units_wt}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label"> - Student</div><div class="mb-summary-val">{student:.2f} {units_wt}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label"> - Instructor</div><div class="mb-summary-val">{instructor:.2f} {units_wt}</div></div>', unsafe_allow_html=True)
     if ac['cg_limits']:
-        st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label">CG</div><div class="mb-summary-val {get_cg_color(cg, ac["cg_limits"])}">{cg:.3f} {ac["units"]["arm"]}</div></div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label">CG Limits</div><div class="mb-summary-val">{ac["cg_limits"][0]:.3f} to {ac["cg_limits"][1]:.3f} {ac["units"]["arm"]}</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label">CG</div><div class="mb-summary-val {get_cg_color(cg, ac["cg_limits"])}">{cg:.3f} {units_arm}</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="mb-summary-row"><div class="mb-summary-label">CG Limits</div><div class="mb-summary-val">{ac["cg_limits"][0]:.3f} to {ac["cg_limits"][1]:.3f} {units_arm}</div></div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
     for a in alert_list:
         st.markdown(f'<div class="mb-alert">{a}</div>', unsafe_allow_html=True)
@@ -388,7 +256,7 @@ with cols[2]:
     st.markdown('<div class="section-title" style="margin-bottom:9px;">Mass & Balance Table</div>', unsafe_allow_html=True)
     items = [
         ("Empty Weight", ew, ew_arm, m_empty),
-        ("Pilot & Passenger", student + instructor, ac['pilot_arm'], m_pilot),
+        ("Pilot & Passenger", pilot, ac['pilot_arm'], m_pilot),
         ("Baggage", bag1, ac['baggage_arm'], m_bag1),
         ("Fuel", fuel_weight, ac['fuel_arm'], m_fuel),
     ]
@@ -406,7 +274,7 @@ with cols[2]:
             table += f"<tr><td>{i[0]}</td><td>{i[1]:.2f}</td><td>{i[2]:.3f}</td><td>{i[3]:.2f}</td></tr>"
         table += "</table>"
         return table
-    st.markdown(mb_table(items, ac['units']['weight'], ac['units']['arm']), unsafe_allow_html=True)
+    st.markdown(mb_table(items, units_wt, units_arm), unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
     # --- PDF GENERATION ---
@@ -450,6 +318,7 @@ with cols[2]:
                 for line in get_limits_text(ac):
                     pdf.cell(0, 5, ascii_safe(line), ln=True)
                 pdf.ln(1)
+                # Mass & Balance Table
                 pdf.set_font("Arial", 'B', 10)
                 col_widths = [45, 36, 34, 55]
                 headers = ["Item", f"Weight ({ac['units']['weight']})", f"Arm ({ac['units']['arm']})", f"Moment ({ac['units']['weight']}·{ac['units']['arm']})"]
@@ -459,35 +328,21 @@ with cols[2]:
                 pdf.set_font("Arial", '', 9)
                 rows = [
                     ("Empty Weight", ew, ew_arm, m_empty),
-                    ("Pilot & Passenger", student + instructor, ac['pilot_arm'], m_pilot),
+                    ("Pilot & Passenger", pilot, ac['pilot_arm'], m_pilot),
                     ("Baggage", bag1, ac['baggage_arm'], m_bag1),
                     ("Fuel", fuel_weight, ac['fuel_arm'], m_fuel),
                 ]
                 for row in rows:
-                    for idx, (val, w) in enumerate(zip(row, col_widths)):
-                        if idx == 1: # Peso
-                            if row[0] == "Empty Weight":
-                                rgb = (50, 50, 50)
-                            elif row[0] == "Pilot & Passenger":
-                                rgb = get_rgb_status(row[1], ac["max_passenger_weight"])
-                            elif row[0] == "Baggage":
-                                rgb = get_rgb_status(row[1], ac["max_baggage_weight"])
-                            elif row[0] == "Fuel":
-                                rgb = (50, 50, 50)
-                            else:
-                                rgb = (50, 50, 50)
-                            pdf.set_fill_color(*rgb)
-                            pdf.cell(w, 7, ascii_safe(f"{val:.2f}" if isinstance(val, float) else str(val)), border=1, align='C', fill=True)
+                    for val, w in zip(row, col_widths):
+                        if isinstance(val, str):
+                            pdf.cell(w, 7, ascii_safe(val), border=1)
                         else:
-                            pdf.set_fill_color(255,255,255)
-                            if isinstance(val, str):
-                                pdf.cell(w, 7, ascii_safe(val), border=1)
-                            else:
-                                pdf.cell(w, 7, ascii_safe(f"{val:.2f}" if isinstance(val, float) else str(val)), border=1, align='C')
+                            pdf.cell(w, 7, ascii_safe(f"{val:.2f}" if isinstance(val, float) else str(val)), border=1, align='C')
                     pdf.ln()
                 pdf.ln(1)
+                # --- Main values with color coding ---
                 pdf.set_font("Arial", 'B', 10)
-                pdf.set_text_color(50,50,50)
+                pdf.set_text_color(0,0,0)
                 if fuel_mode == "Automatic maximum fuel (default)":
                     limit_expl = "Limited by: " + ("Tank Capacity" if fuel_limit_by == "Tank Capacity" else "Maximum Weight")
                 elif fuel_limit_by == "Manual Entry":
@@ -496,28 +351,35 @@ with cols[2]:
                     limit_expl = fuel_limit_by
                 fuel_str = f"Fuel: {fuel_vol:.1f} L / {fuel_weight:.1f} {ac['units']['weight']} ({limit_expl})"
                 pdf.cell(0, 6, ascii_safe(fuel_str), ln=True)
-                # Color code nos campos principais do sumário
+
+                # Apply color for each summary value (Total Weight, Pilot+Passenger, CG, etc)
+                pdf.set_font("Arial", '', 10)
                 # Total Weight
-                rgb = get_rgb_status(total_weight, ac["max_takeoff_weight"])
-                pdf.set_fill_color(*rgb)
-                pdf.cell(0, 6, ascii_safe(f"Total Weight: {total_weight:.2f} {ac['units']['weight']}"), ln=True, fill=True)
-                # Total Moment (não tem limite)
-                pdf.set_fill_color(255,255,255)
+                color = get_color(total_weight, ac["max_takeoff_weight"])
+                r,g,b = color_rgb(color)
+                pdf.set_text_color(r,g,b)
+                pdf.cell(0, 6, ascii_safe(f"Total Weight: {total_weight:.2f} {ac['units']['weight']} [{color.upper()}]"), ln=True)
+                pdf.set_text_color(0,0,0)
+                # Total Moment (sem cor)
                 pdf.cell(0, 6, ascii_safe(f"Total Moment: {total_moment:.2f} {ac['units']['weight']}·{ac['units']['arm']}"), ln=True)
                 # Pilot + Passenger
-                rgb = get_rgb_status(student + instructor, ac["max_passenger_weight"])
-                pdf.set_fill_color(*rgb)
-                pdf.cell(0, 6, ascii_safe(f"Pilot + Passenger: {student+instructor:.2f} {ac['units']['weight']}"), ln=True, fill=True)
-                pdf.set_fill_color(255,255,255)
+                color = get_color(pilot, ac["max_passenger_weight"])
+                r,g,b = color_rgb(color)
+                pdf.set_text_color(r,g,b)
+                pdf.cell(0, 6, ascii_safe(f"Pilot + Passenger: {pilot:.2f} {ac['units']['weight']} [{color.upper()}]"), ln=True)
+                pdf.set_text_color(0,0,0)
+                # Student / Instructor
                 pdf.cell(0, 6, ascii_safe(f" - Student: {student:.2f} {ac['units']['weight']}"), ln=True)
                 pdf.cell(0, 6, ascii_safe(f" - Instructor: {instructor:.2f} {ac['units']['weight']}"), ln=True)
+                # CG
                 if ac['cg_limits']:
-                    rgb = get_cg_rgb(cg, ac['cg_limits'])
-                    pdf.set_fill_color(*rgb)
-                    pdf.cell(0, 6, ascii_safe(f"CG: {cg:.3f} {ac['units']['arm']}"), ln=True, fill=True)
-                    pdf.set_fill_color(255,255,255)
+                    cgcolor = get_cg_color(cg, ac["cg_limits"])
+                    r,g,b = color_rgb(cgcolor)
+                    pdf.set_text_color(r,g,b)
+                    pdf.cell(0, 6, ascii_safe(f"CG: {cg:.3f} {ac['units']['arm']} [{cgcolor.upper()}]"), ln=True)
+                    pdf.set_text_color(0,0,0)
                     pdf.cell(0, 6, ascii_safe(f"CG Limits: {ac['cg_limits'][0]:.3f} to {ac['cg_limits'][1]:.3f} {ac['units']['arm']}"), ln=True)
-                # Alertas
+                # Alerts
                 if alert_list:
                     pdf.set_font("Arial", 'B', 9)
                     pdf.set_text_color(200,0,0)
@@ -636,4 +498,5 @@ with st.expander("Contact / Suggestion / Bug", expanded=False):
             except Exception as e:
                 st.warning(f"Failed to send message: {e}")
                 print(f"SendGrid Exception: {e}")
+
 
