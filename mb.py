@@ -368,10 +368,25 @@ for idx, a in enumerate(st.session_state.aerodromes):
 
         st.markdown(
             f"""
-            <div class="da-pa-highlight">Pressure Altitude (PA): {pa_ft:.0f} ft</div>
-            <div class="da-pa-highlight">Density Altitude (DA): {da_ft:.0f} ft</div>
+            <div style="
+                background: #f5f5f5;
+                border: 1.5px solid #ddd;
+                border-radius: 11px;
+                padding: 16px 18px 10px 18px;
+                margin: 10px 0 18px 0;
+                box-shadow: 0 2px 7px #e0e0e0;
+                text-align: left;">
+              <div style="font-size: 1.11rem; font-weight: 600; color:#2d2d2d; margin-bottom:7px;">Atmospheric Altitudes</div>
+              <div style="font-size: 1.42rem; font-weight: bold; color:#232323; letter-spacing:0.01em;">
+                PA <span style="font-size:1rem;font-weight:400;color:#444;">(Pressure Altitude)</span>: {pa_ft:.0f} ft
+              </div>
+              <div style="font-size: 1.42rem; font-weight: bold; color:#232323; letter-spacing:0.01em;">
+                DA <span style="font-size:1rem;font-weight:400;color:#444;">(Density Altitude)</span>: {da_ft:.0f} ft
+              </div>
+            </div>
             """, unsafe_allow_html=True
         )
+
 
 st.markdown('</div>', unsafe_allow_html=True)
 
