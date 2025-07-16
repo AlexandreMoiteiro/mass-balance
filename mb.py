@@ -182,6 +182,14 @@ def inject_css():
         filter: drop-shadow(0px 2px 12px #b1b3c222);
         image-rendering: auto;
     }
+    .da-pa-highlight {
+        font-size: 1.17em;
+        font-weight: bold;
+        color: #144fd7;
+        margin-top:4px;
+        margin-bottom:3px;
+        letter-spacing:0.01em;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -227,9 +235,7 @@ def get_limits_text(ac):
 def utc_now():
     return datetime.datetime.now(pytz.UTC)
 
-# --- HEADER ---
 st.markdown(f'<div class="mb-header">Mass & Balance Planner</div>', unsafe_allow_html=True)
-
 cols = st.columns([0.48, 0.02, 0.5], gap="large")
 
 # --- LEFT: Aircraft info, limits, input form grouped at the top ---
@@ -306,19 +312,19 @@ with cols[0]:
                 st.warning(manual_fuel_warning)
         st.form_submit_button("Update")
 
-# --- PERFORMANCE SECTION: Vários Aeródromos ---
+# --- PERFORMANCE SECTION: Vários Aeródromos, valores sempre em FEET ---
 st.markdown('<div class="mb-section">', unsafe_allow_html=True)
 st.markdown('<div class="section-title">Performance - Aerodrome(s)</div>', unsafe_allow_html=True)
 
 if "aerodromes" not in st.session_state:
     st.session_state.aerodromes = [
-        {"icao": "LPCS", "elev": 114.0, "qnh": 1013.0, "temp": 15.0}
+        {"icao": "LPCS", "elev_ft": 374.0, "qnh": 1013.0, "temp": 15.0}
     ]
 
 add_btn, _, remove_btn = st.columns([0.20, 0.03, 0.20], gap="small")
 
 if add_btn.button("Add Aerodrome"):
-    st.session_state.aerodromes.append({"icao":"", "elev":0.0, "qnh":1013.0, "temp":15.0})
+    st.session_state.aerodromes.append({"icao":"", "elev_ft":0.0, "qnh":1013.0, "temp":15.0})
 if remove_btn.button("Remove Last", disabled=len(st.session_state.aerodromes)==1):
     if len(st.session_state.aerodromes) > 1:
         st.session_state.aerodromes.pop(-1)
@@ -328,38 +334,37 @@ for idx, a in enumerate(st.session_state.aerodromes):
     with st.container():
         st.markdown(f"##### Aerodrome {idx+1}")
         icao = st.text_input(f"ICAO code", value=a["icao"], key=f"perf_icao_{idx}", max_chars=8)
-        elev = st.number_input("Elevation (m)", min_value=-400.0, max_value=6000.0, value=float(a["elev"]), step=1.0, key=f"perf_elev_{idx}")
+        elev_ft = st.number_input("Elevation (ft)", min_value=-1200.0, max_value=20000.0, value=float(a["elev_ft"]), step=1.0, key=f"perf_elev_{idx}")
         qnh = st.number_input("QNH (hPa)", min_value=900.0, max_value=1050.0, value=float(a["qnh"]), step=0.1, key=f"perf_qnh_{idx}")
         temp = st.number_input("Temperature (°C)", min_value=-40.0, max_value=60.0, value=float(a["temp"]), step=0.1, key=f"perf_temp_{idx}")
 
         # Save state
         st.session_state.aerodromes[idx]["icao"] = icao
-        st.session_state.aerodromes[idx]["elev"] = elev
+        st.session_state.aerodromes[idx]["elev_ft"] = elev_ft
         st.session_state.aerodromes[idx]["qnh"] = qnh
         st.session_state.aerodromes[idx]["temp"] = temp
 
-        # Calcular PA (em metros)
-        pa = elev + (1013.25 - qnh) * 27  # sempre metros; 27m/hPa
-        pa_ft = pa / 0.3048
-        isa_temp = 15 - (2 * (pa_ft / 1000))
-        da = pa + (120 * (temp - isa_temp))
+        # PA (ft): PA = Elevation(ft) + [27 x (1013.25 - QNH)]
+        pa_ft = elev_ft + (1013.25 - qnh) * 27
+        # DA (ft): DA = PA + [120 × (OAT - ISA temp at PA)], mas ignorar temp ISA
+        # Então, DA = PA + [120 × (OAT - (15 - 2*(PA/1000)))]  <--- mas NÃO mostrar ISA temp
+        isa_temp = 15 - 2 * (pa_ft / 1000)
+        da_ft = pa_ft + (120 * (temp - isa_temp))
         perf_outputs.append({
             "icao": icao,
-            "elev": elev,
+            "elev_ft": elev_ft,
             "qnh": qnh,
             "temp": temp,
-            "pa": pa,
-            "da": da,
-            "isa_temp": isa_temp,
+            "pa_ft": pa_ft,
+            "da_ft": da_ft
         })
 
+        # DESTAQUE no site (azul, bold)
         st.markdown(
             f"""
-            <b>Pressure Altitude (PA):</b> <span style='font-weight:600'>{pa:.0f} m</span><br>
-            <b>Density Altitude (DA):</b> <span style='font-weight:600'>{da:.0f} m</span><br>
-            <span style='font-size:0.96em;color:#6c6c6c'>(ISA temp at PA: {isa_temp:.1f} °C)</span>
-            """,
-            unsafe_allow_html=True
+            <div class="da-pa-highlight">Pressure Altitude (PA): {pa_ft:.0f} ft</div>
+            <div class="da-pa-highlight">Density Altitude (DA): {da_ft:.0f} ft</div>
+            """, unsafe_allow_html=True
         )
 
 st.markdown('</div>', unsafe_allow_html=True)
@@ -455,12 +460,11 @@ with cols[2]:
         st.markdown(f"""
         <div class="mb-summary">
         <div class="mb-summary-row"><div class="mb-summary-label">Aerodrome {idx+1} (ICAO)</div><div class="mb-summary-val">{po['icao']}</div></div>
-        <div class="mb-summary-row"><div class="mb-summary-label">Elevation</div><div class="mb-summary-val">{po['elev']:.0f} m</div></div>
+        <div class="mb-summary-row"><div class="mb-summary-label">Elevation</div><div class="mb-summary-val">{po['elev_ft']:.0f} ft</div></div>
         <div class="mb-summary-row"><div class="mb-summary-label">QNH</div><div class="mb-summary-val">{po['qnh']:.1f} hPa</div></div>
         <div class="mb-summary-row"><div class="mb-summary-label">Temperature</div><div class="mb-summary-val">{po['temp']:.1f} °C</div></div>
-        <div class="mb-summary-row"><div class="mb-summary-label">Pressure Altitude (PA)</div><div class="mb-summary-val">{po['pa']:.0f} m</div></div>
-        <div class="mb-summary-row"><div class="mb-summary-label">Density Altitude (DA)</div><div class="mb-summary-val">{po['da']:.0f} m</div></div>
-        <div class="mb-summary-row"><div class="mb-summary-label">ISA Temp at PA</div><div class="mb-summary-val">{po['isa_temp']:.1f} °C</div></div>
+        <div class="mb-summary-row"><span class="da-pa-highlight">Pressure Altitude (PA)</span><div class="mb-summary-val da-pa-highlight">{po['pa_ft']:.0f} ft</div></div>
+        <div class="mb-summary-row"><span class="da-pa-highlight">Density Altitude (DA)</span><div class="mb-summary-val da-pa-highlight">{po['da_ft']:.0f} ft</div></div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -488,7 +492,7 @@ with cols[2]:
     st.markdown(mb_table(items, units_wt, units_arm), unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- PDF GENERATION ---
+    # --- PDF GENERATION (last block!) ---
     st.markdown('<div class="mb-section mb-pdf-section">', unsafe_allow_html=True)
     st.markdown('<div class="section-title">PDF Report</div>', unsafe_allow_html=True)
     with st.expander("Generate PDF report", expanded=False):
@@ -529,18 +533,22 @@ with cols[2]:
                 for line in get_limits_text(ac):
                     pdf.cell(0, 5, ascii_safe(line), ln=True)
                 pdf.ln(1)
-                # PERFORMANCE SECTION PDF MULTI
+                # PERFORMANCE SECTION PDF MULTI, sempre em feet, PA e DA destacados
                 pdf.set_font("Arial", 'B', 10)
                 pdf.cell(0, 6, ascii_safe("Performance - Aerodrome(s):"), ln=True)
-                pdf.set_font("Arial", '', 9)
                 for idx, po in enumerate(perf_outputs):
-                    pdf.cell(0, 5, ascii_safe(f"Aerodrome {idx+1} (ICAO): {po['icao']}"), ln=True)
-                    pdf.cell(0, 5, ascii_safe(f"  Elevation: {po['elev']:.0f} m"), ln=True)
+                    pdf.set_font("Arial", 'B', 9)
+                    pdf.cell(0, 6, ascii_safe(f"Aerodrome {idx+1} (ICAO): {po['icao']}"), ln=True)
+                    pdf.set_font("Arial", '', 9)
+                    pdf.cell(0, 5, ascii_safe(f"  Elevation: {po['elev_ft']:.0f} ft"), ln=True)
                     pdf.cell(0, 5, ascii_safe(f"  QNH: {po['qnh']:.1f} hPa"), ln=True)
                     pdf.cell(0, 5, ascii_safe(f"  Temperature: {po['temp']:.1f} °C"), ln=True)
-                    pdf.cell(0, 5, ascii_safe(f"  Pressure Altitude (PA): {po['pa']:.0f} m"), ln=True)
-                    pdf.cell(0, 5, ascii_safe(f"  Density Altitude (DA): {po['da']:.0f} m"), ln=True)
-                    pdf.cell(0, 5, ascii_safe(f"  ISA Temp at PA: {po['isa_temp']:.1f} °C"), ln=True)
+                    # Destaque PA e DA
+                    pdf.set_font("Arial", 'B', 10)
+                    pdf.set_text_color(20,79,215)
+                    pdf.cell(0, 6, ascii_safe(f"  Pressure Altitude (PA): {po['pa_ft']:.0f} ft"), ln=True)
+                    pdf.cell(0, 6, ascii_safe(f"  Density Altitude (DA): {po['da_ft']:.0f} ft"), ln=True)
+                    pdf.set_text_color(0,0,0)
                 pdf.ln(1)
                 pdf.set_font("Arial", 'B', 10)
                 col_widths = [45, 36, 34, 55]
@@ -712,4 +720,5 @@ with st.expander("Contact / Suggestion / Bug", expanded=False):
             except Exception as e:
                 st.warning(f"Failed to send message: {e}")
                 print(f"SendGrid Exception: {e}")
+
 
