@@ -312,7 +312,7 @@ with cols[0]:
                 st.warning(manual_fuel_warning)
         st.form_submit_button("Update")
 
-# --- PERFORMANCE SECTION: Vários Aeródromos, valores sempre em FEET ---
+# --- PERFORMANCE SECTION: Inputs e outputs em FT ---
 st.markdown('<div class="mb-section">', unsafe_allow_html=True)
 st.markdown('<div class="section-title">Performance - Aerodrome(s)</div>', unsafe_allow_html=True)
 
@@ -346,8 +346,7 @@ for idx, a in enumerate(st.session_state.aerodromes):
 
         # PA (ft): PA = Elevation(ft) + [27 x (1013.25 - QNH)]
         pa_ft = elev_ft + (1013.25 - qnh) * 27
-        # DA (ft): DA = PA + [120 × (OAT - ISA temp at PA)], mas ignorar temp ISA
-        # Então, DA = PA + [120 × (OAT - (15 - 2*(PA/1000)))]  <--- mas NÃO mostrar ISA temp
+        # DA (ft): DA = PA + [120 × (OAT - ISA temp at PA)], mas não mostrar temp ISA
         isa_temp = 15 - 2 * (pa_ft / 1000)
         da_ft = pa_ft + (120 * (temp - isa_temp))
         perf_outputs.append({
@@ -359,7 +358,7 @@ for idx, a in enumerate(st.session_state.aerodromes):
             "da_ft": da_ft
         })
 
-        # DESTAQUE no site (azul, bold)
+        # Destaque no site
         st.markdown(
             f"""
             <div class="da-pa-highlight">Pressure Altitude (PA): {pa_ft:.0f} ft</div>
@@ -369,7 +368,7 @@ for idx, a in enumerate(st.session_state.aerodromes):
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- LOGIC (igual antes) ---
+# --- LOGIC ---
 fuel_density = ac['fuel_density']
 units_wt = ac['units']['weight']
 units_arm = ac['units']['arm']
@@ -492,7 +491,7 @@ with cols[2]:
     st.markdown(mb_table(items, units_wt, units_arm), unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- PDF GENERATION (last block!) ---
+    # --- PDF GENERATION (última coisa do site) ---
     st.markdown('<div class="mb-section mb-pdf-section">', unsafe_allow_html=True)
     st.markdown('<div class="section-title">PDF Report</div>', unsafe_allow_html=True)
     with st.expander("Generate PDF report", expanded=False):
@@ -533,7 +532,7 @@ with cols[2]:
                 for line in get_limits_text(ac):
                     pdf.cell(0, 5, ascii_safe(line), ln=True)
                 pdf.ln(1)
-                # PERFORMANCE SECTION PDF MULTI, sempre em feet, PA e DA destacados
+                # PERFORMANCE SECTION PDF MULTI
                 pdf.set_font("Arial", 'B', 10)
                 pdf.cell(0, 6, ascii_safe("Performance - Aerodrome(s):"), ln=True)
                 for idx, po in enumerate(perf_outputs):
@@ -720,5 +719,6 @@ with st.expander("Contact / Suggestion / Bug", expanded=False):
             except Exception as e:
                 st.warning(f"Failed to send message: {e}")
                 print(f"SendGrid Exception: {e}")
+
 
 
