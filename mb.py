@@ -17,6 +17,12 @@ def ascii_safe(text):
     if not isinstance(text, str):
         return str(text)
     return unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('ascii')
+    
+flight_datetime_utc = st.text_input(
+    "Scheduled flight date and time (UTC)",
+    value=default_datetime,
+    key="flight_datetime_utc"
+)
 
 def get_color(val, limit):
     if limit is None: return "ok"
