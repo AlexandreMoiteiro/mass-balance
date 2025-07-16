@@ -182,14 +182,6 @@ def inject_css():
         filter: drop-shadow(0px 2px 12px #b1b3c222);
         image-rendering: auto;
     }
-    .da-pa-highlight {
-        font-size: 1.17em;
-        font-weight: bold;
-        color: #144fd7;
-        margin-top:4px;
-        margin-bottom:3px;
-        letter-spacing:0.01em;
-    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -312,16 +304,15 @@ with cols[0]:
                 st.warning(manual_fuel_warning)
         st.form_submit_button("Update")
 
-# --- PERFORMANCE SECTION: Inputs e outputs em FT ---
+# --- PERFORMANCE SECTION: Inputs e outputs em FT, default LPSO 390ft ---
 st.markdown('<div class="mb-section">', unsafe_allow_html=True)
 st.markdown('<div class="section-title">Performance - Aerodrome(s)</div>', unsafe_allow_html=True)
 
 if "aerodromes" not in st.session_state or not isinstance(st.session_state.aerodromes, list):
     st.session_state.aerodromes = [
-        {"icao": "LPCS", "elev_ft": 374.0, "qnh": 1013.0, "temp": 15.0}
+        {"icao": "LPSO", "elev_ft": 390.0, "qnh": 1013.0, "temp": 15.0}
     ]
 
-# GARANTE TODAS AS KEYS PARA EVITAR KeyError
 for i, a in enumerate(st.session_state.aerodromes):
     if not isinstance(a, dict):
         st.session_state.aerodromes[i] = {"icao": "", "elev_ft": 0.0, "qnh": 1013.0, "temp": 15.0}
@@ -348,7 +339,6 @@ for idx, a in enumerate(st.session_state.aerodromes):
         qnh = st.number_input("QNH (hPa)", min_value=900.0, max_value=1050.0, value=float(a.get("qnh", 1013.0)), step=0.1, key=f"perf_qnh_{idx}")
         temp = st.number_input("Temperature (°C)", min_value=-40.0, max_value=60.0, value=float(a.get("temp", 15.0)), step=0.1, key=f"perf_temp_{idx}")
 
-        # Salva valores atuais
         st.session_state.aerodromes[idx]["icao"] = icao
         st.session_state.aerodromes[idx]["elev_ft"] = elev_ft
         st.session_state.aerodromes[idx]["qnh"] = qnh
@@ -366,30 +356,10 @@ for idx, a in enumerate(st.session_state.aerodromes):
             "da_ft": da_ft
         })
 
-        st.markdown(
-            f"""
-            <div style="
-                background: #f5f5f5;
-                border: 1.5px solid #ddd;
-                border-radius: 11px;
-                padding: 16px 18px 10px 18px;
-                margin: 10px 0 18px 0;
-                box-shadow: 0 2px 7px #e0e0e0;
-                text-align: left;">
-              <div style="font-size: 1.11rem; font-weight: 600; color:#2d2d2d; margin-bottom:7px;">Atmospheric Altitudes</div>
-              <div style="font-size: 1.42rem; font-weight: bold; color:#232323; letter-spacing:0.01em;">
-                PA <span style="font-size:1rem;font-weight:400;color:#444;">(Pressure Altitude)</span>: {pa_ft:.0f} ft
-              </div>
-              <div style="font-size: 1.42rem; font-weight: bold; color:#232323; letter-spacing:0.01em;">
-                DA <span style="font-size:1rem;font-weight:400;color:#444;">(Density Altitude)</span>: {da_ft:.0f} ft
-              </div>
-            </div>
-            """, unsafe_allow_html=True
-        )
-
+        # Simples: apenas bold PA/DA
+        st.markdown(f"**Pressure Altitude (PA):** {pa_ft:.0f} ft  \n**Density Altitude (DA):** {da_ft:.0f} ft")
 
 st.markdown('</div>', unsafe_allow_html=True)
-
 
 # --- LOGIC ---
 fuel_density = ac['fuel_density']
@@ -485,8 +455,10 @@ with cols[2]:
         <div class="mb-summary-row"><div class="mb-summary-label">Elevation</div><div class="mb-summary-val">{po['elev_ft']:.0f} ft</div></div>
         <div class="mb-summary-row"><div class="mb-summary-label">QNH</div><div class="mb-summary-val">{po['qnh']:.1f} hPa</div></div>
         <div class="mb-summary-row"><div class="mb-summary-label">Temperature</div><div class="mb-summary-val">{po['temp']:.1f} °C</div></div>
-        <div class="mb-summary-row"><span class="da-pa-highlight">Pressure Altitude (PA)<span style="font-weight:bold;">Pressure Altitude (PA):</span> {pa_ft:.0f} ft<br> ft</div></div>
-        <div class="mb-summary-row"><span class="da-pa-highlight">Density Altitude (DA)<span style="font-weight:bold;">Density Altitude (DA):</span> {pa_ft:.0f} ft<br> ft</div></div>
+        <div style="margin-top:7px; margin-bottom:7px;">
+        <b>Pressure Altitude (PA):</b> {po['pa_ft']:.0f} ft<br>
+        <b>Density Altitude (DA):</b> {po['da_ft']:.0f} ft
+        </div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -565,7 +537,7 @@ with cols[2]:
                     pdf.cell(0, 5, ascii_safe(f"  Elevation: {po['elev_ft']:.0f} ft"), ln=True)
                     pdf.cell(0, 5, ascii_safe(f"  QNH: {po['qnh']:.1f} hPa"), ln=True)
                     pdf.cell(0, 5, ascii_safe(f"  Temperature: {po['temp']:.1f} °C"), ln=True)
-                    # Destaque PA e DA
+                    # Simples: apenas bold PA/DA
                     pdf.set_font("Arial", 'B', 12)
                     pdf.set_text_color(50, 50, 50)
                     pdf.cell(0, 8, ascii_safe(f"  Pressure Altitude (PA): {po['pa_ft']:.0f} ft"), ln=True)
