@@ -551,11 +551,12 @@ with cols[2]:
                     pdf.cell(0, 5, ascii_safe(f"  QNH: {po['qnh']:.1f} hPa"), ln=True)
                     pdf.cell(0, 5, ascii_safe(f"  Temperature: {po['temp']:.1f} °C"), ln=True)
                     # Destaque PA e DA
-                    pdf.set_font("Arial", 'B', 10)
-                    pdf.set_text_color(20,79,215)
-                    pdf.cell(0, 6, ascii_safe(f"  Pressure Altitude (PA): {po['pa_ft']:.0f} ft"), ln=True)
-                    pdf.cell(0, 6, ascii_safe(f"  Density Altitude (DA): {po['da_ft']:.0f} ft"), ln=True)
+                    pdf.set_font("Arial", 'B', 12)
+                    pdf.set_text_color(50, 50, 50)
+                    pdf.cell(0, 8, ascii_safe(f"  Pressure Altitude (PA): {po['pa_ft']:.0f} ft"), ln=True)
+                    pdf.cell(0, 8, ascii_safe(f"  Density Altitude (DA): {po['da_ft']:.0f} ft"), ln=True)
                     pdf.set_text_color(0,0,0)
+                    pdf.set_font("Arial", '', 9)
                 pdf.ln(1)
                 pdf.set_font("Arial", 'B', 10)
                 col_widths = [45, 36, 34, 55]
