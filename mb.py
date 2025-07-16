@@ -492,4 +492,3 @@ with st.expander("Contact / Suggestion / Bug", expanded=False):
                 print(f"SendGrid Exception: {e}")
 
 
-
