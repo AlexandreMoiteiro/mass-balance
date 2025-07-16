@@ -521,14 +521,8 @@ with cols[2]:
                 pdf.cell(0, 6, ascii_safe(f"Prepared by: {pilot_name}"), ln=True)
                 pdf.cell(0, 6, ascii_safe("Operator: Sevenair Academy"), ln=True)
                 pdf.ln(2)
-                pdf.set_font("Arial", 'B', 10)
-                pdf.cell(0, 6, ascii_safe("Operational Limits:"), ln=True)
-                pdf.set_font("Arial", '', 9)
-                for line in get_limits_text(ac):
-                    pdf.cell(0, 5, ascii_safe(line), ln=True)
-                pdf.ln(1)
                 # PERFORMANCE SECTION PDF MULTI
-                pdf.set_font("Arial", 'B', 10)
+                pdf.set_font("Arial", 'B', 12)
                 pdf.cell(0, 6, ascii_safe("Performance - Aerodrome(s):"), ln=True)
                 for idx, po in enumerate(perf_outputs):
                     pdf.set_font("Arial", 'B', 9)
@@ -538,13 +532,18 @@ with cols[2]:
                     pdf.cell(0, 5, ascii_safe(f"  QNH: {po['qnh']:.1f} hPa"), ln=True)
                     pdf.cell(0, 5, ascii_safe(f"  Temperature: {po['temp']:.1f} °C"), ln=True)
                     # Simples: apenas bold PA/DA
-                    pdf.set_font("Arial", 'B', 12)
+                    pdf.set_font("Arial", 'B', 9)
                     pdf.set_text_color(50, 50, 50)
                     pdf.cell(0, 8, ascii_safe(f"  Pressure Altitude (PA): {po['pa_ft']:.0f} ft"), ln=True)
                     pdf.cell(0, 8, ascii_safe(f"  Density Altitude (DA): {po['da_ft']:.0f} ft"), ln=True)
                     pdf.set_text_color(0,0,0)
-                    pdf.set_font("Arial", '', 9)
-                pdf.ln(1)
+                pdf.ln(2)
+                pdf.set_font("Arial", 'B', 12)
+                pdf.cell(0, 6, ascii_safe("Operational Limits:"), ln=True)
+                pdf.set_font("Arial", '', 9)
+                for line in get_limits_text(ac):
+                    pdf.cell(0, 5, ascii_safe(line), ln=True)
+                pdf.ln(2)
                 pdf.set_font("Arial", 'B', 10)
                 col_widths = [45, 36, 34, 55]
                 headers = ["Item", f"Weight ({ac['units']['weight']})", f"Arm ({ac['units']['arm']})", f"Moment ({ac['units']['weight']}·{ac['units']['arm']})"]
